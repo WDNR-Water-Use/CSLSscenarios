@@ -1,0 +1,27 @@
+Package: CSLSscenarios
+Type: Package
+Title: CSLS MODFLOW Scenario Analysis
+Version: 0.1.0
+Author: Carolyn Voter
+Maintainer: Carolyn Voter <cvoter@wisc.edu>
+Description: Analyze MODFLOW scenarios for average seasonal water levels and significant (ecological) impact.
+License: MIT + file LICENSE
+Encoding: UTF-8
+LazyData: true
+Depends:
+    R (>= 2.10)
+Imports:
+    CSLSdata,
+    dplyr,
+    magrittr,
+    lubridate,
+    raster,
+    rlang,
+    stats,
+    reshape2,
+    NISTunits,
+    knitr
+Suggests:
+VignetteBuilder: knitr
+RoxygenNote: 7.1.1
+Roxygen: list(markdown = TRUE)
