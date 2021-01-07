@@ -22,6 +22,10 @@ Imports:
     NISTunits,
     knitr
 Suggests:
+    rmarkdown,
+    extrafont,
+    ggplot2,
+    patchwork
 VignetteBuilder: knitr
 RoxygenNote: 7.1.1
 Roxygen: list(markdown = TRUE)

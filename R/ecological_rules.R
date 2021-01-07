@@ -19,8 +19,6 @@
 #' \item{bathy_metric}{if applicable, name of child metric that needs to be
 #'                     calculated from hydrologic metric before evaluating
 #'                     significance}
-#' \item{round_digits}{number of digits after the decimal place to round these
-#'                     metric values and thresholds to}
 #' \item{percent}{percent difference from base value allowed before change is
 #'                considered a "significant impact"}
 #' \item{difference}{additive difference from base value allowed before change

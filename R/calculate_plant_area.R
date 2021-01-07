@@ -50,9 +50,17 @@ calculate_plant_area <- function(df) {
 
     #Estimate plant area at each exceedance level
     for (plant in plants) {
-      plant_fn <- approxfun(this_profile$elev_m,
-                            this_profile[,plant])
-      this_levels[,plant] <- plant_fn(this_levels$value)
+      # Plant area (m2)
+      area_name     <- sprintf("%s_m2", plant)
+      plant_area_fn <- approxfun(this_profile$elev_m,
+                                  this_profile[,area_name])
+      this_levels[,area_name] <- plant_area_fn(this_levels$value)
+
+      # Percent of lake outline that contains this plant
+      pcnt_name     <- sprintf("%s_pcnt", plant)
+      plant_pcnt_fn <- approxfun(this_profile$elev_m,
+                                 this_profile[,pcnt_name])
+      this_levels[,pcnt_name] <- plant_pcnt_fn(this_levels$value)
     }
 
     this_areas <- this_levels[,c("lake", "probs", plants)] %>%

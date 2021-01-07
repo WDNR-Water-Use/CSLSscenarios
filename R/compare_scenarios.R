@@ -76,10 +76,7 @@ compare_scenarios <- function(df1,
       # Calculate rule on hydrologic metric, straight up
       impact     <- evaluate_impact_rules(this_rule)
       this_hydro <- this_hydro %>%
-                    mutate(threshold = round(impact$factor*.data$value1 + impact$diff,
-                                             this_rule$round_digits),
-                           value1 = round(.data$value1, this_rule$round_digits),
-                           value2 = round(.data$value2, this_rule$round_digits),
+                    mutate(threshold = impact$factor*.data$value1 + impact$diff,
                            diff = .data$value2 - .data$value1,
                            threshold_diff = .data$threshold - .data$value1,
                            lower = ifelse(.data$value2 < .data$threshold,

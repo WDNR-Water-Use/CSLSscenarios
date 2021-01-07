@@ -1,0 +1,604 @@
+---
+title: "MODFLOW_comparison"
+output: 
+  rmarkdown::html_vignette:
+    toc: true
+vignette: >
+  %\VignetteIndexEntry{MODFLOW_comparison}
+  %\VignetteEngine{knitr::rmarkdown}
+  \usepackage[utf8]{inputenc}
+---
+
+```{r setup, eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE}
+library(dplyr)
+library(CSLSscenarios)
+library(reshape2)
+library(NISTunits)
+library(ggplot2)
+library(extrafont)
+library(patchwork)
+library(lubridate)
+
+MODFLOW         <- CSLSdata::MODFLOW %>%
+                   filter(.data$scenario %in% c("no_irr", "irr"),
+                          year(.data$date) >= 1986) %>%
+                   select(.data$lake, .data$scenario, .data$sim,
+                          .data$date, .data$level_m) 
+MODFLOW_metrics <- CSLSscenarios::MODFLOW_metrics %>%
+                   mutate(value = ifelse(.data$metric ==  "area",
+                                         NISTsqrMeterTOacre(.data$value),
+                                         ifelse(.data$metric == "volume",
+                                                NISTcubMeterTOacreFt(.data$value),
+                                                .data$value)))
+MODFLOW_diff    <- dcast(MODFLOW_metrics,
+                         lake+metric+variable+sim+series~scenario,
+                         value.var = "value") %>%
+                   mutate(value = .data$irr - .data$no_irr) 
+
+
+compare_width  <- 6.5
+compare_height <- 6
+diff_width     <- 6.5
+diff_height    <- 5
+
+```
+
+```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE}
+plot_comparison <- function(df, 
+                            metric = data.frame(metric = "exceedance_level",
+                                                ylabel = "Lake Elevation (ft)",
+                                                mTOft = TRUE),
+                            variables = data.frame(breaks = c("10", "25", "50",
+                                                              "75", "90"),
+                                                   labels = c("Infrequent\nHigh",
+                                                              "Frequent\nHigh",
+                                                              "Median",
+                                                              "Frequent\nLow",
+                                                              "Infrequent\nLow")),
+                            series = "month",
+                            colors = data.frame(breaks = c("no_irr", "irr"),
+                                                labels = c("No Irrigation",
+                                                           "Current Irrigation"),
+                                                values = c("darkblue",
+                                                           "gold")),
+                            text_size = 12,
+                            legend_position = "top") {
+  
+  # Manipulate data frame for plotting
+  df         <- df %>%
+                filter(.data$metric == !!metric$metric,
+                       .data$series == !!series,
+                       .data$variable %in% variables$breaks) 
+  df$scenario <- factor(df$scenario, levels = colors$breaks)
+  df$variable <- factor(df$variable, levels = variables$breaks)
+  if (metric$mTOft) { 
+    df$value  <- NISTmeterTOft(df$value) 
+  }
+  
+  # Plot
+  plot_obj <- ggplot(df) +
+              geom_boxplot(aes(x = as.factor(.data$variable),
+                               y = .data$value,
+                               fill = .data$scenario),
+                           position = position_dodge()) +
+              scale_fill_manual(name = "",
+                                breaks = colors$breaks,
+                                labels = colors$labels,
+                                values = colors$values) +
+              scale_x_discrete(breaks = variables$breaks,
+                               labels = variables$labels) +
+              labs(x = "", y = metric$ylabel) +
+              facet_wrap(~lake, scales = "free_y", ncol = 1) +
+              theme_bw() +
+              theme(text = element_text(family = "Segoe UI Semilight",
+                                        size = text_size),
+                    legend.position = legend_position)
+  
+  return(plot_obj)
+}
+
+```
+
+```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE}
+plot_diff <- function(df, 
+                      metric = data.frame(metric = "exceedance_level",
+                                          ylabel = "Lake Elevation (ft)",
+                                          mTOft = TRUE),
+                      variables = data.frame(breaks = c("10", "25", "50",
+                                                        "75", "90"),
+                                             labels = c("Infrequent\nHigh",
+                                                        "Frequent\nHigh",
+                                                        "Median",
+                                                        "Frequent\nLow",
+                                                        "Infrequent\nLow")),
+                      series = "month",
+                      colors = "grey40",
+                      text_size = 12) {
+  
+  # Manipulate data frame for plotting
+  df         <- df %>%
+                filter(.data$metric == !!metric$metric,
+                       .data$series == !!series,
+                       .data$variable %in% variables$breaks) 
+  df$variable <- factor(df$variable, levels = variables$breaks)
+  if (metric$mTOft) { 
+    df$value  <- NISTmeterTOft(df$value) 
+  }
+  
+  # Plot
+  plot_obj <- ggplot(df) +
+              geom_hline(yintercept = 0,
+                         color = "black",
+                         linetype = "dashed") +
+              geom_boxplot(aes(x = as.factor(.data$variable),
+                               y = .data$value),
+                           fill = colors) +
+              scale_x_discrete(breaks = variables$breaks,
+                               labels = variables$labels) +
+              labs(x = "", y = metric$ylabel) +
+              facet_wrap(~lake, ncol = 1) +
+              theme_bw() +
+              theme(text = element_text(family = "Segoe UI Semilight",
+                                        size = text_size))
+  
+  return(plot_obj)
+}
+
+```
+
+
+## Overview
+
+## Magnitude
+
+### Exceedance Probabilities
+
+**Comparison**
+
+```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE, fig.width=compare_width, fig.height=compare_height}
+plot_comparison(MODFLOW_metrics)
+```
+
+<br>
+
+**Pairwise Differences**
+
+```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE, fig.width=diff_width, fig.height=diff_height}
+plot_diff(MODFLOW_diff)
+```
+
+<br>
+
+### Exceedance Ranges
+
+**Comparison**
+
+```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE, fig.width=4, fig.height=6}
+metric <- data.frame(metric = "exceedance_range",
+                     ylabel = "Range (ft)",
+                     mTOft = TRUE)
+variables<- data.frame(breaks = c("range_10_90",
+                                  "range_25_75"),
+                       labels = c("Infrequent High -\nInfrequent Low",
+                                  "Frequent High -\nFrequent Low"))
+
+plot_comparison(MODFLOW_metrics, metric = metric, variables = variables)
+```
+
+<br>
+
+**Pairwise Differences**
+
+```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE, fig.width=4, fig.height=5}
+plot_diff(MODFLOW_diff, metric = metric, variables = variables)
+```
+
+<br>
+
+### Max Lake Depth
+
+**Comparison**
+
+```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE, fig.width=compare_width, fig.height=compare_height}
+metric <- data.frame(metric = "max_depth",
+                     ylabel = "Maximum Depth (ft)",
+                     mTOft = TRUE)
+variables<- data.frame(breaks = c("10", "25", "50",
+                                  "75", "90"),
+                       labels = c("Infrequent\nHigh",
+                                  "Frequent\nHigh",
+                                  "Median",
+                                  "Frequent\nLow",
+                                  "Infrequent\nLow"))
+
+plot_comparison(MODFLOW_metrics, metric = metric, variables = variables)
+```
+
+<br>
+
+**Pairwise Differences**
+
+```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE, fig.width=diff_width, fig.height=diff_height}
+plot_diff(MODFLOW_diff, metric = metric, variables = variables)
+```
+
+<br>
+
+### Mean Lake Depth
+
+**Comparison**
+
+```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE, fig.width=compare_width, fig.height=compare_height}
+metric <- data.frame(metric = "mean_depth",
+                     ylabel = "Mean Depth (ft)",
+                     mTOft = TRUE)
+variables<- data.frame(breaks = c("10", "25", "50",
+                                  "75", "90"),
+                       labels = c("Infrequent\nHigh",
+                                  "Frequent\nHigh",
+                                  "Median",
+                                  "Frequent\nLow",
+                                  "Infrequent\nLow"))
+
+plot_comparison(MODFLOW_metrics, metric = metric, variables = variables)
+```
+
+<br>
+
+**Pairwise Differences**
+
+```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE, fig.width=diff_width, fig.height=diff_height}
+plot_diff(MODFLOW_diff, metric = metric, variables = variables)
+```
+
+<br>
+
+### Lake Area
+
+**Comparison**
+
+```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE, fig.width=compare_width, fig.height=compare_height}
+metric <- data.frame(metric = "area",
+                     ylabel = "Lake Area (ac)",
+                     mTOft = FALSE)
+variables<- data.frame(breaks = c("10", "25", "50",
+                                  "75", "90"),
+                       labels = c("Infrequent\nHigh",
+                                  "Frequent\nHigh",
+                                  "Median",
+                                  "Frequent\nLow",
+                                  "Infrequent\nLow"))
+
+plot_comparison(MODFLOW_metrics, metric = metric, variables = variables)
+```
+
+<br>
+
+**Pairwise Differences**
+
+```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE, fig.width=diff_width, fig.height=diff_height}
+plot_diff(MODFLOW_diff, metric = metric, variables = variables)
+```
+
+<br>
+
+### Lake Volume
+
+**Comparison**
+
+```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE, fig.width=compare_width, fig.height=compare_height}
+metric <- data.frame(metric = "volume",
+                     ylabel = "Lake Volume (ac-ft)",
+                     mTOft = FALSE)
+variables<- data.frame(breaks = c("10", "25", "50",
+                                  "75", "90"),
+                       labels = c("Infrequent\nHigh",
+                                  "Frequent\nHigh",
+                                  "Median",
+                                  "Frequent\nLow",
+                                  "Infrequent\nLow"))
+
+plot_comparison(MODFLOW_metrics, metric = metric, variables = variables)
+```
+
+<br>
+
+**Pairwise Differences**
+
+```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE, fig.width=diff_width, fig.height=diff_height}
+plot_diff(MODFLOW_diff, metric = metric, variables = variables)
+```
+
+<br>
+
+
+### Seasonal Medians
+
+**Comparison**
+
+```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE, fig.width=5, fig.height=6.5}
+metric    <- data.frame(metric = "median_level",
+                        ylabel = "Median Lake Elevation (ft)",
+                        mTOft = TRUE)
+variables <- data.frame(breaks = c("1", "4", "7", "10"),
+                        labels = c("Winter", "Spring", "Summer", "Fall"))
+plot_comparison(MODFLOW_metrics, metric = metric, variables = variables, 
+                series = "season")
+```
+
+<br>
+
+**Pairwise Differences**
+
+```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE, fig.width=5, fig.height=5}
+plot_diff(MODFLOW_diff, metric = metric, variables = variables, 
+          series = "season")
+```
+
+<br>
+
+## Frequency
+
+### Pleasant Lake - Stratification
+
+**Comparison**
+
+```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE, fig.width=3, fig.height=2.5}
+metric    <- data.frame(metric = "stratification",
+                        ylabel = "Time Lake is Stratified (%)",
+                        mTOft = FALSE)
+variables <- data.frame(breaks = c("percent_strat"),
+                        labels = c("% stratified"))
+
+plot_comparison(MODFLOW_metrics, metric = metric, variables = variables)
+```
+<br>
+
+**Pairwise Differences**
+
+```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE, fig.width=3, fig.height=2.5}
+plot_diff(MODFLOW_diff, metric = metric, variables = variables)
+```
+
+<br>
+
+### Pleasant Lake - Turtle Bay
+
+**Comparison**
+
+```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE, fig.width=3, fig.height=2.5}
+metric    <- data.frame(metric = "turtle_bay",
+                        ylabel = "Time Turtle Bay Connected (%)",
+                        mTOft = FALSE)
+variables <- data.frame(breaks = c("percent_connect",
+                                   "percent_connect_warm"),
+                        labels = c("% Connected",
+                                   "% Connected\n(Warm Months)"))
+
+plot_comparison(MODFLOW_metrics, metric = metric, variables = variables)
+```
+<br>
+
+**Pairwise Differences**
+
+```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE, fig.width=3, fig.height=2.5}
+plot_diff(MODFLOW_diff, metric = metric, variables = variables)
+```
+
+<br>
+
+### Pleasant Lake - Motorboat Area > 62.5 ac
+
+**Comparison**
+
+```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE, fig.width=3, fig.height=2.5}
+metric    <- data.frame(metric = "motorboat",
+                        ylabel = "Percent of Time",
+                        mTOft = FALSE)
+variables <- data.frame(breaks = c("percent_ok"),
+                        labels = c("Motorboating Legal"))
+
+plot_comparison(MODFLOW_metrics, metric = metric, variables = variables)
+```
+
+<br>
+
+**Pairwise Differences**
+
+```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE, fig.width=3, fig.height=2.5}
+plot_diff(MODFLOW_diff, metric = metric, variables = variables)
+```
+
+<br>
+
+### Long Lake - Paddleboat basins connected & > 3ft
+
+**Comparison**
+
+```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE, fig.width=3, fig.height=2.5}
+metric    <- data.frame(metric = "paddleboat",
+                        ylabel = "Percent of Time",
+                        mTOft = FALSE)
+variables <- data.frame(breaks = c("percent_ok"),
+                        labels = c("Paddleboat Ok"))
+
+plot_comparison(MODFLOW_metrics, metric = metric, variables = variables)
+```
+
+<br>
+
+**Pairwise Differences**
+
+```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE, fig.width=3, fig.height=2.5}
+plot_diff(MODFLOW_diff, metric = metric, variables = variables)
+```
+
+<br>
+
+### Move Docks
+
+**Comparison**
+
+```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE, fig.width=4.5, fig.height=4}
+metric    <- data.frame(metric = "move_dock",
+                        ylabel = "Percent of Years",
+                        mTOft = FALSE)
+variables <- data.frame(breaks = c("percent_bad_june",
+                                   "percent_moves"),
+                        labels = c("Bad June Dock",
+                                   "Move Dock"))
+
+plot_comparison(MODFLOW_metrics, metric = metric, variables = variables)
+```
+
+<br>
+
+**Pairwise Differences**
+
+```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE, fig.width=3, fig.height=2.5}
+plot_diff(MODFLOW_diff, metric = metric, variables = variables)
+```
+
+<br>
+
+## Duration
+
+### Number of Times > 2 yrs
+Both scenarios are evaluated relative to the "No Irrigation" median levels.
+
+**Comparison**
+
+```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE, fig.width=4, fig.height=6}
+metric    <- data.frame(metric = "num_2yr",
+                        ylabel = "Number of Times in 33 years",
+                        mTOft = FALSE)
+variables <- data.frame(breaks = c("a50",
+                                   "b50"),
+                        labels = c("Above Median",
+                                   "Below Median"))
+
+plot_comparison(MODFLOW_metrics, metric = metric, variables = variables)
+```
+<br>
+
+**Pairwise Differences**
+
+```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE, fig.width=4, fig.height=5}
+plot_diff(MODFLOW_diff, metric = metric, variables = variables)
+```
+
+<br>
+
+
+### Median Duration
+Both scenarios are evaluated relative to the "No Irrigation" exceedance
+probability levels.
+
+**Comparison**
+
+```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE, fig.width=6.5, fig.height=6}
+metric    <- data.frame(metric = "median_dur",
+                        ylabel = "Median Duration (months)",
+                        mTOft = FALSE)
+variables <- data.frame(breaks = c("10", "25", "a50", "b50", "75", "90"),
+                        labels = c("Infrequent\nHigh",
+                                   "Frequent\nHigh",
+                                   "Above\nMedian",
+                                   "Below\nMedian",
+                                   "Frequent\nLow",
+                                   "Infrequent\nLow"))
+
+plot_comparison(MODFLOW_metrics, metric = metric, variables = variables)
+```
+<br>
+
+**Pairwise Differences**
+
+```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE, fig.width=6.5, fig.height=5}
+plot_diff(MODFLOW_diff, metric = metric, variables = variables)
+```
+
+<br>
+
+## Rate of Change
+
+### Median Rise Rate
+
+**Comparison**
+
+```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE, fig.width=4.5, fig.height=6}
+metric    <- data.frame(metric = "median_rise_rate",
+                        ylabel = "Median Rise Rate (ft/time period)",
+                        mTOft = TRUE)
+variables <- data.frame(breaks = c("1", "3", "12"),
+                        labels = c("1 Month",
+                                   "3 Months",
+                                   "12 Months"))
+
+plot_comparison(MODFLOW_metrics, metric = metric, variables = variables)
+```
+<br>
+
+**Pairwise Differences**
+
+```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE, fig.width=4.5, fig.height=5}
+plot_diff(MODFLOW_diff, metric = metric, variables = variables)
+```
+
+<br>
+
+### Median Fall Rate
+
+**Comparison**
+
+```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE, fig.width=4.5, fig.height=6}
+metric    <- data.frame(metric = "median_fall_rate",
+                        ylabel = "Median Fall Rate (ft/time period)",
+                        mTOft = TRUE)
+variables <- data.frame(breaks = c("1", "3", "12"),
+                        labels = c("1 Month",
+                                   "3 Months",
+                                   "12 Months"))
+
+plot_comparison(MODFLOW_metrics, metric = metric, variables = variables)
+```
+<br>
+
+**Pairwise Differences**
+
+```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE, fig.width=4.5, fig.height=5}
+plot_diff(MODFLOW_diff, metric = metric, variables = variables)
+```
+
+<br>
+
+## Timing
+
+### Good Spawning Years
+
+**Comparison**
+
+```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE, fig.width=4, fig.height=3}
+metric    <- data.frame(metric = "good_spawning",
+                        ylabel = "Good Spawning Years (%)",
+                        mTOft = FALSE)
+variables <- data.frame(breaks = c("high_spring", 
+                                   "steady_summer", 
+                                   "good_spawning"),
+                        labels = c("High Spring",
+                                   "Steady Summer",
+                                   "Good Spawning"))
+
+plot_comparison(filter(MODFLOW_metrics, .data$lake == "Pleasant"), 
+                       metric = metric, variables = variables)
+```
+<br>
+
+**Pairwise Differences**
+
+```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE, fig.width=4, fig.height=2.5}
+plot_diff(filter(MODFLOW_diff, .data$lake == "Pleasant"),
+          metric = metric, variables = variables)
+```
+
+<br>
