@@ -3,9 +3,11 @@
 library(dplyr)
 library(reshape2)
 library(NISTunits)
+library(CSLSscenarios)
 
 # 1. Decide on upper/lower bound scenarios -------------------------------------
-MODFLOW_metrics  <- CSLSscenarios::MODFLOW_metrics
+MODFLOW_metrics  <- CSLSscenarios::MODFLOW_metrics %>%
+                    filter(.data$series == "month")
 base_scenario    <- "no_irr"
 compare_scenario <- "irr"
 
