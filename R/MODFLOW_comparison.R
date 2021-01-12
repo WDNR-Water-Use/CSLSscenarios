@@ -1,0 +1,39 @@
+#' Dataset: comparison of MODFLOW scenarios
+#'
+#' COmparison of MODFLOW scenarios with determinations of impact for variaous
+#' ecological indicators.
+#'
+#' @docType data
+#'
+#' @usage data(MODFLOW_comparison)
+#'
+#' @format A data frame with the following columns.
+#' \describe{
+#'   \item{lake}{name of lake, e.g., Pleasant, Long, Plainfield}
+#'   \item{hydrology}{type of hydrologic metric (e.g., "magnitude")}
+#'   \item{metric}{name of hydrologic metrics, e.g. median_level, cv_rise_rate}
+#'   \item{variable}{name of variation on metrics, e.g. 10 for 10% exceedance
+#'                   level}
+#'   \item{category}{type of ecological indicator (e.g., "fish", "plants")}
+#'   \item{indicator}{ecological indicator}
+#'   \item{impacted}{logical indicated if ecological indicator is impacted by
+#'                   change in hydrology, TRUE or FALSE}
+#'   \item{significant_if}{whether metric is impacted from base if it is "lower"
+#'                         or "higher" than the threshold}
+#'   \item{value1}{value of hydrologic metric for base scenario}
+#'   \item{threshold}{threshold value of hydrologic metric}
+#'   \item{value2}{value of hydrologic metric for comparison scenario}
+#'   \item{threshold_diff}{threshold - value1}
+#'   \item{diff}{value2 - value1}
+#'   \item{bathy_significant_if}{whether bathymetry metric is impacted from
+#'                               base if it is "lower" or "higher" than the
+#'                               bathymetry threshold}
+#'   \item{bathy1}{value of bathymetry metric for base scenario}
+#'   \item{bathy_threshold}{threshold value of bathymetry metric}
+#'   \item{bathy2}{value of bathymetry metric for comparison scenario}
+#'   \item{bathy_threshold_diff}{bathy_threshold - bathy1}
+#'   \item{bathy_diff}{bathy2 - bathy1}
+#'   \item{sim}{id of MODFLOW simulation}
+#'   \item{sim_type}{"base", "conservative", or "permissive"}
+#' }
+"MODFLOW_comparison"

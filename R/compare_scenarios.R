@@ -42,6 +42,7 @@
 #' @importFrom magrittr %>%
 #' @importFrom rlang .data
 #' @importFrom dplyr filter mutate select
+#' @importFrom stringr str_remove
 #'
 #' @export
 
@@ -96,6 +97,8 @@ compare_scenarios <- function(df1,
   }
 
   # Combine all indicators -----------------------------------------------------
+  # Filter to only those flagged "keep"
+  # Track bathymetry significant_if directions
   keep_indicators <- rules %>%
                      select(.data$indicator, .data$Pleasant, .data$Long,
                             .data$Plainfield) %>%
@@ -107,9 +110,9 @@ compare_scenarios <- function(df1,
                 left_join(keep_indicators, by = c("lake", "indicator")) %>%
                 filter(.data$keep) %>%
                 mutate(bathy_significant_if = .data$significant_if,
-                       significant_if = ifelse(.data$category == "plants" &
-                                                 .data$metric == "exceedance_level",
-                                               "lower", .data$significant_if)) %>%
+                       significant_if = ifelse(.data$metric == "exceedance_level",
+                                               "lower",
+                                               .data$significant_if)) %>%
                 select(.data$lake,
                        .data$hydrology,
                        .data$metric,
@@ -129,6 +132,26 @@ compare_scenarios <- function(df1,
                        .data$bathy2,
                        .data$bathy_threshold_diff,
                        .data$bathy_diff)
+
+  # Merge plant increase/decrease thresholds -----------------------------------
+  plants_df <- comparison %>%
+               filter(.data$metric == "exceedance_level",
+                      .data$category == "plants")
+  plants_new <- plants_df %>%
+                mutate(plant_type = str_remove(str_remove(.data$indicator,
+                                                          "_increase"),
+                                               "_decrease")) %>%
+                filter(!is.na(.data$threshold)) %>%
+                group_by(.data$lake, .data$metric, .data$variable,
+                         .data$plant_type) %>%
+                mutate(threshold_limit = max(.data$threshold)) %>%
+                ungroup() %>%
+                filter(.data$threshold == .data$threshold_limit) %>%
+                mutate(indicator = .data$plant_type) %>%
+                select(colnames(comparison))
+  comparison <- comparison %>%
+                filter(!.data$indicator %in% c(plants_df$indicator)) %>%
+                rbind(plants_new)
 
   return(comparison)
 }

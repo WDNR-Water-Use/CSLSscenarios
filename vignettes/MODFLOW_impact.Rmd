@@ -1,0 +1,589 @@
+---
+title: "MODFLOW_impact"
+output: 
+  rmarkdown::html_vignette:
+    toc: true
+vignette: >
+  %\VignetteIndexEntry{MODFLOW_impact}
+  %\VignetteEngine{knitr::rmarkdown}
+  \usepackage[utf8]{inputenc}
+---
+
+```{r setup, eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE}
+library(CSLSscenarios)
+library(dplyr)
+library(reshape2)
+library(ggplot2)
+library(extrafont)
+library(knitr) # for kable
+
+MODFLOW_comparison <- CSLSscenarios::MODFLOW_comparison
+
+```
+
+```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE}
+# Most limiting by ecological category -----------------------------------------
+limiting      <- MODFLOW_comparison %>%
+                 group_by(.data$sim_type,
+                          .data$lake,
+                          .data$hydrology,
+                          .data$metric,
+                          .data$variable,
+                          .data$value1,
+                          .data$value2,
+                          .data$diff,
+                          .data$category,
+                          .data$significant_if) %>%
+                 mutate(limit_threshold = ifelse(.data$significant_if == "lower",
+                                                 max(.data$threshold, na.rm = TRUE),
+                                                 min(.data$threshold, na.rm = TRUE))) %>%
+                 filter(.data$limit_threshold == .data$threshold) %>%
+                 ungroup() %>%
+                 select(.data$sim_type,
+                        .data$lake,
+                        .data$hydrology,
+                        .data$metric,
+                        .data$variable,
+                        .data$category,
+                        .data$indicator,
+                        .data$impacted,
+                        .data$significant_if,
+                        .data$value1,
+                        .data$threshold,
+                        .data$value2,
+                        .data$threshold_diff,
+                        .data$diff,
+                        .data$bathy_significant_if,
+                        .data$bathy1,
+                        .data$bathy_threshold,
+                        .data$bathy2,
+                        .data$bathy_threshold_diff,
+                        .data$bathy_diff)
+
+# Most limiting by hydrologic metric -------------------------------------------
+most_limiting <- MODFLOW_comparison %>%
+                 group_by(.data$sim_type,
+                          .data$lake,
+                          .data$hydrology,
+                          .data$metric,
+                          .data$variable,
+                          .data$value1,
+                          .data$value2,
+                          .data$diff,
+                          .data$significant_if) %>%
+                 mutate(limit_threshold = ifelse(.data$significant_if == "lower",
+                                                 max(.data$threshold, na.rm = TRUE),
+                                                 min(.data$threshold, na.rm = TRUE))) %>%
+                 filter(.data$limit_threshold == .data$threshold) %>%
+                 ungroup() %>%
+                 select(.data$sim_type,
+                        .data$lake,
+                        .data$hydrology,
+                        .data$metric,
+                        .data$variable,
+                        .data$category,
+                        .data$indicator,
+                        .data$impacted,
+                        .data$significant_if,
+                        .data$value1,
+                        .data$threshold,
+                        .data$value2,
+                        .data$threshold_diff,
+                        .data$diff,
+                        .data$bathy_significant_if,
+                        .data$bathy1,
+                        .data$bathy_threshold,
+                        .data$bathy2,
+                        .data$bathy_threshold_diff,
+                        .data$bathy_diff)
+
+```
+
+```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE}
+plot_diff <- function(df,
+                      metric = data.frame(metric = "exceedance_level",
+                                          ylabel = "Change in Lake Elevation (ft)"),
+                      variables = data.frame(breaks = c("10", "25", "50",
+                                                        "75", "90"),
+                                             labels = c("Infrequent\nHigh",
+                                                        "Frequent\nHigh",
+                                                        "Median",
+                                                        "Frequent\nLow",
+                                                        "Infrequent\nLow")),
+                      plot_diff = TRUE,
+                      text_size = 10) {
+  if (plot_diff) {
+    plot_df <- df %>% 
+               filter(.data$metric %in% !!metric$metric,
+                      .data$variable %in% variables$breaks) %>%
+               select(sim_type = .data$sim_type, 
+                      lake = .data$lake, 
+                      metric_variable = .data$variable, 
+                      impacted = .data$impacted,
+                      Threshold = .data$threshold_diff,
+                      Comparison = .data$diff) %>%
+               melt(id.vars = c("sim_type", "lake", "metric_variable", "impacted"))
+    scenario_breaks <- c("Threshold", "Comparison")
+    scenario_values <- c("grey80", "grey20")
+    plot_obj <- ggplot(plot_df) +
+                geom_hline(yintercept = 0,
+                           color = "black",
+                           linetype = "dashed",
+                           size = 1)
+  } else {
+    plot_df <- df %>% 
+               filter(.data$metric %in% !!metric$metric,
+                      .data$variable %in% variables$breaks) %>%
+               select(sim_type = .data$sim_type, 
+                      lake = .data$lake, 
+                      metric_variable = .data$variable, 
+                      impacted = .data$impacted,
+                      Reference = .data$value1,
+                      Threshold = .data$threshold,
+                      Comparison = .data$value2) %>%
+               melt(id.vars = c("sim_type", "lake", "metric_variable", "impacted"))
+    scenario_breaks <- c("Reference", "Threshold", "Comparison")
+    scenario_values <- c("grey90", "grey50", "grey10")
+    plot_obj <- ggplot(plot_df)
+  }
+  
+  plot_obj <- plot_obj +
+              geom_point(aes(x = .data$metric_variable,
+                             y = .data$value,
+                             group = .data$variable,
+                             shape = .data$sim_type,
+                             fill = .data$variable,
+                             color = .data$impacted),
+                         position = position_dodge(width = 0.5),
+                         size = 2.5) +
+              scale_shape_manual(name = "Simulation",
+                                 breaks = c("permissive", "base", "conservative"),
+                                 labels = c("Permissive", "Base", "Conservative"),
+                                 values = c(24, 21, 25))  +
+              scale_color_manual(name = "Impacted",
+                                 breaks = c(TRUE, FALSE),
+                                 values = c("red", "darkgreen")) +
+              scale_fill_manual(name = "Scenario",
+                                 breaks = scenario_breaks,
+                                 values = scenario_values) +
+              scale_x_discrete(breaks = variables$breaks,
+                               labels = variables$labels) +
+              guides(color = guide_legend(override.aes = list(shape = 21)),
+                     fill = guide_legend(override.aes = list(shape = 21))) +
+              labs(x = "", y = metric$ylabel) +
+              theme_bw() +
+              theme(text = element_text(family = "Segoe UI Semilight",
+                                        size = text_size))
+  return(plot_obj)
+}
+
+```
+
+```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE}
+# FUNCTIONS TO CONVERT DATA FRAME TO TABLE
+# Function 1/3: round values to desired precision and save as string -----------
+round_to_string <- function(val, metric) {
+  # Reference
+  digits2 <- c("exceedance_level", "exceedance_range")
+  digits1 <- c("stratification", "turtle_bay", "paddleboat", "motorboat", 
+               "move_dock", "good_spawning")
+  digits0 <- c("num_2yr")
+  
+  val <- as.numeric(val)
+  
+  # Evaluate
+  if (metric %in% digits2) {
+    string <- sprintf("%.2f", val)
+  } else if (metric %in% digits1) {
+    string <- sprintf("%.1f", val)
+  } else if (metric %in% digits0) {
+    string <- sprintf("%.0f", val)
+  } else {
+    warning("metric not known, add to list")
+  }
+  
+  return(string)
+}
+
+# Function 2/3: aggregate when there is a higher and lower threshold -----------
+aggregate_threshold <- function(x) {
+  if (length(x) == 2) {
+    xmin   <- x[which.min(as.numeric(x))]
+    xmax   <- x[which.max(as.numeric(x))]
+    string <- sprintf("%s-%s",xmin, xmax)
+  } else {
+    string <- as.character(x)
+  }
+  return(string)
+}
+
+# Function 3/3: format table ---------------------------------------------------
+format_table <- function(df,
+                         value_var = "threshold",
+                         hydrology_order = c("magnitude", "frequency", 
+                                             "duration", "rate_of_change", 
+                                             "timing"),
+                         metric_order = c("exceedance_level", 
+                                          "exceedance_range", "stratification", 
+                                          "turtle_bay", "motorboat", "num_2yr", 
+                                          "move_dock", "good_spawning")) {
+  
+  # Retain only "base" values + count of impacts
+  vals_df   <- df %>% 
+               group_by(.data$hydrology, .data$metric, .data$variable, 
+                        .data$category, .data$significant_if) %>%
+               mutate(impacted = sum(.data$impacted, na.rm = TRUE)) %>%
+               ungroup() %>%
+               filter(.data$sim_type == "base",
+                      !is.na(.data$impacted)) %>%
+               select(.data$hydrology, .data$metric, .data$variable, 
+                      .data$category, .data$significant_if, .data$impacted, 
+                      .data$value1, .data$threshold, .data$value2, 
+                      .data$threshold_diff, .data$diff)
+  
+  # Round values and convert to strings
+  string_df <- vals_df %>%
+               mutate_at(c("value1", "value2", "threshold", 
+                           "threshold_diff", "diff"), 
+                         as.character)
+  for (i in 1:nrow(vals_df)) {
+    for (col_name in c("value1", "value2", "threshold", "threshold_diff", 
+                      "diff")) {
+      string_df[i,col_name] <- round_to_string(vals_df[i,col_name],
+                                               vals_df$metric[i])
+    }
+  }
+  
+  # Reshape table
+  if (value_var == "threshold") {
+    final_cols <- c("hydrology", "metric", "variable", "value1",
+                    unique(string_df$category), "value2")
+    table_df <- string_df %>%
+                select(.data$hydrology, .data$metric, .data$variable,
+                       .data$value1, .data$value2, .data$category,
+                       .data$threshold) %>%
+                dcast(hydrology+metric+variable+value1+value2~category,
+                      value.var = value_var, 
+                      fun.aggregate = aggregate_threshold,
+                      fill = "") %>%
+                select(final_cols) %>%
+                mutate(hydrology = factor(.data$hydrology, 
+                                          levels = hydrology_order),
+                       metric = factor(.data$metric, 
+                                          levels = metric_order)) %>%
+                arrange(.data$hydrology, .data$metric)
+  } else if (value_var == "impacted") {
+    final_cols <- c("hydrology", "metric", "variable", "value1",
+                    unique(string_df$category), "value2")
+    table_df <- string_df %>%
+                select(.data$hydrology, .data$metric, .data$variable,
+                       .data$value1, .data$value2, .data$category,
+                       .data$impacted) %>%
+                dcast(hydrology+metric+variable+value1+value2~category,
+                      value.var = value_var, 
+                      fun.aggregate = max) %>%
+                mutate_if(is.numeric, function(x) ifelse(is.infinite(x), 
+                                                         NA, x)) %>%
+                select(final_cols) %>%
+                mutate(hydrology = factor(.data$hydrology, 
+                                          levels = hydrology_order),
+                       metric = factor(.data$metric, 
+                                          levels = metric_order)) %>%
+                arrange(.data$hydrology, .data$metric)
+  } else if (value_var == "threshold_diff") {
+    final_cols <- c("hydrology", "metric", "variable", "value1",
+                    unique(string_df$category), "diff")
+    table_df <- string_df %>%
+                select(.data$hydrology, .data$metric, .data$variable,
+                       .data$value1, .data$diff, .data$category,
+                       .data$threshold_diff) %>%
+                dcast(hydrology+metric+variable+value1+diff~category,
+                      value.var = value_var, 
+                      fun.aggregate = aggregate_threshold,
+                      fill = "") %>%
+                select(final_cols) %>%
+                mutate(hydrology = factor(.data$hydrology, 
+                                          levels = hydrology_order),
+                       metric = factor(.data$metric, 
+                                          levels = metric_order)) %>%
+                arrange(.data$hydrology, .data$metric)
+  }
+  
+  return(table_df)
+}
+
+```
+
+
+## Pleasant Lake
+```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE}
+df <- limiting %>% filter(.data$lake == "Pleasant")
+kable(format_table(df, value_var = "threshold"), 
+      caption = "Base Thresholds")
+kable(format_table(df, value_var = "threshold_diff"), 
+      caption = "Base Threshold Differences")
+kable(format_table(df, value_var = "impacted"), 
+      caption = "Impacted Counts (min 0 to max 3)")
+
+df <- most_limiting %>% filter(.data$lake == "Pleasant")
+```
+
+### Exceedance Levels
+
+```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE, fig.width=6.5, fig.height=3.75}
+metric    <- data.frame(metric = "exceedance_level",
+                        ylabel = "Lake Elevation (ft)")
+variables <- data.frame(breaks = c("10", "25", "50", "75", "90"),
+                       labels = c("Infrequent\nHigh",
+                                  "Frequent\nHigh",
+                                  "Median",
+                                  "Frequent\nLow",
+                                  "Infrequent\nLow"))
+
+plot_diff(df, metric, variables, plot_diff = FALSE)
+plot_diff(df, metric, variables, plot_diff = TRUE)
+
+```
+
+<br>
+
+### Exceedance Ranges
+
+Ugh. This one is weird because evaluates both higher and lower.
+
+```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE, fig.width=3, fig.height=3.75}
+metric    <- data.frame(metric = "exceedance_range",
+                        ylabel = "Range (ft)")
+variables <- data.frame(breaks = c("range_10_90"),
+                        labels = c("Infrequent High -\nInfrequent Low"))
+
+plot_diff(df, metric, variables, plot_diff = FALSE)
+plot_diff(df, metric, variables, plot_diff = TRUE)
+```
+
+
+<br>
+
+### Frequency
+
+```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE, fig.width=6.5, fig.height=3.75}
+metric   <- data.frame(metric = c("turtle_bay", "stratification", 
+                                  "motorboat", "move_dock"),
+                       ylabel = "Frequency (% of Time)")
+variables <- data.frame(breaks = c("percent_connect_warm", "percent_strat", 
+                                   "percent_ok", "percent_bad_june"),
+                        labels = c("Turtle Bay\nConnected",
+                                   "Stratified\nLake",
+                                   "Legal Motorboat\nArea",
+                                   "Shallow June\nDock"))
+
+plot_diff(df, metric, variables, plot_diff = FALSE)
+plot_diff(df, metric, variables, plot_diff = TRUE)
+```
+
+
+<br>
+
+### Duration
+
+```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE, fig.width=3.5, fig.height=3.75}
+metric   <- data.frame(metric = c("num_2yr"),
+                       ylabel = "Number of times")
+variables <- data.frame(breaks = c("a50", "b50"),
+                        labels = c("2+ yrs\nAbove Median",
+                                   "2+ yrs\nBelow Median"))
+
+plot_diff(df, metric, variables, plot_diff = FALSE)
+plot_diff(df, metric, variables, plot_diff = TRUE)
+```
+
+
+<br>
+
+### Rate of Change
+
+```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE, fig.width=3.5, fig.height=3.75}
+metric   <- data.frame(metric = c("move_dock"),
+                       ylabel = "Percent of Years")
+variables <- data.frame(breaks = c("percent_moves"),
+                        labels = c("Move Dock"))
+
+plot_diff(df, metric, variables, plot_diff = FALSE)
+plot_diff(df, metric, variables, plot_diff = TRUE)
+```
+
+
+<br>
+
+### Timing
+
+```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE, fig.width=3.5, fig.height=3.75}
+metric   <- data.frame(metric = c("good_spawning"),
+                       ylabel = "Percent of Years")
+variables <- data.frame(breaks = c("good_spawning"),
+                        labels = c("Good Spawning\nConditions"))
+
+plot_diff(df, metric, variables, plot_diff = FALSE)
+plot_diff(df, metric, variables, plot_diff = TRUE)
+```
+
+
+<br>
+
+
+
+
+## Long Lake
+```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE}
+df <- limiting %>% filter(.data$lake == "Long")
+kable(format_table(df, value_var = "threshold"), 
+      caption = "Base Thresholds")
+kable(format_table(df, value_var = "threshold_diff"), 
+      caption = "Base Threshold Differences")
+kable(format_table(df, value_var = "impacted"), 
+      caption = "Impacted Counts (min 0 to max 3)")
+
+df <- most_limiting %>% filter(.data$lake == "Long")
+```
+
+### Exceedance Levels
+
+```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE, fig.width=6.5, fig.height=3.75}
+metric    <- data.frame(metric = "exceedance_level",
+                        ylabel = "Lake Elevation (ft)")
+variables <- data.frame(breaks = c("10", "25", "50", "75", "90"),
+                       labels = c("Infrequent\nHigh",
+                                  "Frequent\nHigh",
+                                  "Median",
+                                  "Frequent\nLow",
+                                  "Infrequent\nLow"))
+
+plot_diff(df, metric, variables, plot_diff = FALSE)
+plot_diff(df, metric, variables, plot_diff = TRUE)
+
+```
+
+<br>
+
+### Exceedance Ranges
+
+Ugh. This one is weird because evaluates both higher and lower.
+
+```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE, fig.width=3, fig.height=3.75}
+metric    <- data.frame(metric = "exceedance_range",
+                        ylabel = "Range (ft)")
+variables <- data.frame(breaks = c("range_10_90"),
+                        labels = c("Infrequent High -\nInfrequent Low"))
+
+plot_diff(df, metric, variables, plot_diff = FALSE)
+plot_diff(df, metric, variables, plot_diff = TRUE)
+```
+
+<br>
+
+### Frequency
+
+```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE, fig.width=3, fig.height=3.75}
+metric   <- data.frame(metric = c("move_dock"),
+                       ylabel = "Frequency (% of Time)")
+variables <- data.frame(breaks = c("percent_bad_june"),
+                        labels = c("Shallow June\nDock"))
+
+plot_diff(df, metric, variables, plot_diff = FALSE)
+plot_diff(df, metric, variables, plot_diff = TRUE)
+```
+
+<br>
+
+### Duration
+
+```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE, fig.width=3.5, fig.height=3.75}
+metric   <- data.frame(metric = c("num_2yr"),
+                       ylabel = "Number of times")
+variables <- data.frame(breaks = c("a50", "b50"),
+                        labels = c("2+ yrs\nAbove Median",
+                                   "2+ yrs\nBelow Median"))
+
+plot_diff(df, metric, variables, plot_diff = FALSE)
+plot_diff(df, metric, variables, plot_diff = TRUE)
+```
+
+<br>
+
+### Rate of Change
+
+```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE, fig.width=3.5, fig.height=3.75}
+metric   <- data.frame(metric = c("move_dock"),
+                       ylabel = "Percent of Years")
+variables <- data.frame(breaks = c("percent_moves"),
+                        labels = c("Move Dock"))
+
+plot_diff(df, metric, variables, plot_diff = FALSE)
+plot_diff(df, metric, variables, plot_diff = TRUE)
+```
+
+<br>
+
+
+## Plainfield Lake
+```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE}
+df <- limiting %>% filter(.data$lake == "Plainfield")
+kable(format_table(df, value_var = "threshold"), 
+      caption = "Base Thresholds")
+kable(format_table(df, value_var = "threshold_diff"), 
+      caption = "Base Threshold Differences")
+kable(format_table(df, value_var = "impacted"), 
+      caption = "Impacted Counts (min 0 to max 3)")
+
+df <- most_limiting %>% filter(.data$lake == "Plainfield")
+```
+
+### Exceedance Levels
+
+```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE, fig.width=6.5, fig.height=3.75}
+metric    <- data.frame(metric = "exceedance_level",
+                        ylabel = "Lake Elevation (ft)")
+variables <- data.frame(breaks = c("10", "25", "50", "75", "90"),
+                       labels = c("Infrequent\nHigh",
+                                  "Frequent\nHigh",
+                                  "Median",
+                                  "Frequent\nLow",
+                                  "Infrequent\nLow"))
+
+plot_diff(df, metric, variables, plot_diff = FALSE)
+plot_diff(df, metric, variables, plot_diff = TRUE)
+
+```
+
+<br>
+
+### Exceedance Ranges
+
+Ugh. This one is weird because evaluates both higher and lower.
+
+```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE, fig.width=3, fig.height=3.75}
+metric    <- data.frame(metric = "exceedance_range",
+                        ylabel = "Range (ft)")
+variables <- data.frame(breaks = c("range_10_90"),
+                        labels = c("Infrequent High -\nInfrequent Low"))
+
+plot_diff(df, metric, variables, plot_diff = FALSE)
+plot_diff(df, metric, variables, plot_diff = TRUE)
+```
+
+<br>
+
+### Duration
+
+```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE, fig.width=3.5, fig.height=3.75}
+metric   <- data.frame(metric = c("num_2yr"),
+                       ylabel = "Number of times")
+variables <- data.frame(breaks = c("a50", "b50"),
+                        labels = c("2+ yrs\nAbove Median",
+                                   "2+ yrs\nBelow Median"))
+
+plot_diff(df, metric, variables, plot_diff = FALSE)
+plot_diff(df, metric, variables, plot_diff = TRUE)
+```
+
+<br>

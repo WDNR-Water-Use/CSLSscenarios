@@ -13,14 +13,15 @@ Depends:
 Imports:
     CSLSdata,
     dplyr,
-    magrittr,
+    knitr,
     lubridate,
+    magrittr,
     raster,
+    reshape2,
     rlang,
     stats,
-    reshape2,
-    NISTunits,
-    knitr
+    stringr,
+    NISTunits
 Suggests:
     rmarkdown,
     extrafont,
