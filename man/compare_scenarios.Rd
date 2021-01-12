@@ -7,6 +7,7 @@
 compare_scenarios(
   df1,
   df2,
+  metric_uncertainty,
   rules = CSLSscenarios::ecological_rules,
   bathymetry = CSLSdata::bathymetry
 )
@@ -16,6 +17,12 @@ compare_scenarios(
 
 \item{df2}{data frame with hydrologic metrics of scenario being evaluated for
 significant impact.}
+
+\item{metric_uncertainty}{data frame with lake, metric, variable, and
+allowable "difference" due to uncertainty in the
+metric. Currently evaluated as the standard
+deviation in the "no irrigation" scenarios of
+the metric.}
 
 \item{rules}{data frame with ecological rules for ecological indicators
 related to hydrologic metrics.}

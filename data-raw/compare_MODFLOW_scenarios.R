@@ -14,6 +14,17 @@ use_sims <- select_bounds(MODFLOW_metrics,
                           compare_scenario = "irr")
 
 # 2. Compare scenarios ---------------------------------------------------------
+# Get standard deviations of metrics, for those with rules = no allowable change
+rules              <- CSLSscenarios::ecological_rules
+rule_metrics       <- unique(rules[, c("metric", "variable")])
+metric_uncertainty <- MODFLOW_metrics %>%
+                      filter(.data$scenario == "no_irr") %>%
+                      inner_join(rule_metrics, (by = c("metric", "variable"))) %>%
+                      group_by(.data$lake, .data$metric, .data$variable) %>%
+                      summarise(difference = sd(.data$value, na.rm = TRUE),
+                                .groups = "drop")
+
+
 comparison <- list()
 i <- 1
 for (sim in use_sims$sim) {
@@ -28,7 +39,9 @@ for (sim in use_sims$sim) {
                           .data$series == "month") %>%
                    select(.data$lake, .data$metric, .data$variable, .data$value)
 
-  this_comparison          <- compare_scenarios(this_base, this_scenario)
+  this_comparison          <- compare_scenarios(this_base,
+                                                this_scenario,
+                                                metric_uncertainty)
   this_comparison$sim      <- sim
   this_comparison$sim_type <- use_sims$sim_type[use_sims$sim == sim]
   comparison[[i]]          <- this_comparison
@@ -129,12 +142,12 @@ most_limiting <- MODFLOW_comparison %>%
                         .data$bathy_threshold_diff,
                         .data$bathy_diff)
 
-# write.csv(MODFLOW_comparison, "comparison_all.csv",
-#           na = "",
-#           row.names = FALSE)
-# write.csv(limiting, "comparison_limiting_indicators.csv",
-#           na = "",
-#           row.names = FALSE)
+write.csv(MODFLOW_comparison, "comparison_all.csv",
+          na = "",
+          row.names = FALSE)
+write.csv(limiting, "comparison_limiting_indicators.csv",
+          na = "",
+          row.names = FALSE)
 
 # SAVE: Write out
 usethis::use_data(MODFLOW_comparison, overwrite = TRUE, compress = "xz")

@@ -18,6 +18,11 @@
 #'                   other parameters (e.g., lake area, lake volume, plant area,
 #'                   substrate area)
 #' @param bathy_metric name of column in bathymetry to evaluate
+#' @param metric_uncertainty data frame with lake, metric, variable, and
+#'                           allowable "difference" due to uncertainty in the
+#'                           metric. Currently evaluated as the standard
+#'                           deviation in the "no irrigation" scenarios of
+#'                           the metric.
 #'
 #' @return impact_evaluation, a data frame with the following columns:
 #' \item{lake}{name of lake, character}
@@ -42,7 +47,8 @@
 extrapolate_bathymetry <- function(this_hydro,
                                    this_rule,
                                    bathymetry,
-                                   bathy_metric) {
+                                   bathy_metric,
+                                   metric_uncertainty) {
 
   impact_evaluation <- NULL
   for (lake in unique(this_hydro$lake)) {
@@ -65,7 +71,7 @@ extrapolate_bathymetry <- function(this_hydro,
       this_lake$bathy2 <- f_elev_bathy(this_lake$value2)
 
       # Get impact rules
-      impact <- evaluate_impact_rules(this_rule)
+      impact <- evaluate_impact_rules(this_rule, metric_uncertainty)
 
       # Threshold for child bathy parameter
       this_lake$bathy_threshold <- impact$factor*this_lake$bathy1+impact$diff

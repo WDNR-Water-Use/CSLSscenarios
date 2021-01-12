@@ -4,12 +4,18 @@
 \alias{evaluate_impact_rules}
 \title{Evaluate ecological impact rules to apply to metric values}
 \usage{
-evaluate_impact_rules(this_rule)
+evaluate_impact_rules(this_rule, metric_uncertainty)
 }
 \arguments{
 \item{this_rule}{data frame with information on "percent", "difference",
 "significant_if" (i.e., "higher" or "lower") for a single
 indicator.}
+
+\item{metric_uncertainty}{data frame with lake, metric, variable, and
+allowable "difference" due to uncertainty in the
+metric. Currently evaluated as the standard
+deviation in the "no irrigation" scenarios of
+the metric.}
 }
 \value{
 impact, a list with values for "factor", "difference" and

@@ -4,7 +4,13 @@
 \alias{extrapolate_bathymetry}
 \title{Extrapolate relationship between elevation and bathymetric metrics}
 \usage{
-extrapolate_bathymetry(this_hydro, this_rule, bathymetry, bathy_metric)
+extrapolate_bathymetry(
+  this_hydro,
+  this_rule,
+  bathymetry,
+  bathy_metric,
+  metric_uncertainty
+)
 }
 \arguments{
 \item{this_hydro}{data frame with the hydrologic metrics (exceedance levels) to
@@ -18,6 +24,12 @@ other parameters (e.g., lake area, lake volume, plant area,
 substrate area)}
 
 \item{bathy_metric}{name of column in bathymetry to evaluate}
+
+\item{metric_uncertainty}{data frame with lake, metric, variable, and
+allowable "difference" due to uncertainty in the
+metric. Currently evaluated as the standard
+deviation in the "no irrigation" scenarios of
+the metric.}
 }
 \value{
 impact_evaluation, a data frame with the following columns:

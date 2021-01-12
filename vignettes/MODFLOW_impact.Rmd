@@ -431,8 +431,6 @@ plot_diff(df, metric, variables, plot_diff = TRUE)
 <br>
 
 
-
-
 ## Long Lake
 ```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE}
 df <- limiting %>% filter(.data$lake == "Long")

@@ -6,6 +6,11 @@
 #' @param df1 data frame with baseline hydrologic metrics
 #' @param df2 data frame with hydrologic metrics of scenario being evaluated for
 #'            significant impact.
+#' @param metric_uncertainty data frame with lake, metric, variable, and
+#'                           allowable "difference" due to uncertainty in the
+#'                           metric. Currently evaluated as the standard
+#'                           deviation in the "no irrigation" scenarios of
+#'                           the metric.
 #' @param rules data frame with ecological rules for ecological indicators
 #'              related to hydrologic metrics.
 #' @param bathymetry data frame with bathymetric relationships with parameters like
@@ -48,6 +53,7 @@
 
 compare_scenarios <- function(df1,
                               df2,
+                              metric_uncertainty,
                               rules = CSLSscenarios::ecological_rules,
                               bathymetry = CSLSdata::bathymetry) {
 
@@ -57,25 +63,25 @@ compare_scenarios <- function(df1,
   comparison <- list()
   i <- 1
 
-  for (indicator in rules$indicator) {
+  for (indicator in 1:nrow(rules)) {
     # Ecological rules for current ecological indicator ------------------------
-    this_rule  <- rules %>% filter(.data$indicator == !!indicator)
+    this_rule  <- rules[indicator,]
 
     # Hydrologic metric related to this ecological indicator -------------------
     # Filter to variable, if specified
-    this_hydro <- combined %>% filter(.data$metric == this_rule$metric)
-    if (this_rule$variable != "") {
-      this_hydro <- this_hydro %>% filter(.data$variable == this_rule$variable)
-    }
+    this_hydro <- combined %>%
+                  filter(.data$metric == this_rule$metric,
+                         .data$variable == this_rule$variable)
 
     # Determine threshold for impact, assess if value2 is impacted -------------
     if (this_rule$bathy_metric != "") {
       # Calculate rule on child metric related to bathymetry
       this_hydro <- extrapolate_bathymetry(this_hydro, this_rule,
-                                           bathymetry, this_rule$bathy_metric)
+                                           bathymetry, this_rule$bathy_metric,
+                                           metric_uncertainty)
     } else {
       # Calculate rule on hydrologic metric, straight up
-      impact     <- evaluate_impact_rules(this_rule)
+      impact     <- evaluate_impact_rules(this_rule, metric_uncertainty)
       this_hydro <- this_hydro %>%
                     mutate(threshold = impact$factor*.data$value1 + impact$diff,
                            diff = .data$value2 - .data$value1,
@@ -100,14 +106,14 @@ compare_scenarios <- function(df1,
   # Filter to only those flagged "keep"
   # Track bathymetry significant_if directions
   keep_indicators <- rules %>%
-                     select(.data$indicator, .data$Pleasant, .data$Long,
-                            .data$Plainfield) %>%
-                     melt(id.vars = "indicator") %>%
-                     select(lake = .data$variable,
-                            indicator = .data$indicator,
-                            keep = .data$value)
+                     select(.data$metric, .data$variable, .data$indicator,
+                            .data$Pleasant, .data$Long, .data$Plainfield) %>%
+                     melt(id.vars = c("metric", "variable", "indicator"))
+  colnames(keep_indicators) <- c("metric", "variable", "indicator",
+                                 "lake", "keep")
   comparison <- bind_rows(comparison) %>%
-                left_join(keep_indicators, by = c("lake", "indicator")) %>%
+                left_join(keep_indicators,
+                          by = c("lake", "metric", "variable", "indicator")) %>%
                 filter(.data$keep) %>%
                 mutate(bathy_significant_if = .data$significant_if,
                        significant_if = ifelse(.data$metric == "exceedance_level",
