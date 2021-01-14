@@ -39,6 +39,8 @@ magnitude,fish,volume_habitat,exceedance_level,50,vol_m3,10,,lower,TRUE,TRUE,FAL
 magnitude,fish,area_habitat,exceedance_level,50,area_m2,10,,lower,TRUE,TRUE,FALSE
 magnitude,fish,littoral_habitat,exceedance_level,50,substrate_area_m2,20,,lower,TRUE,FALSE,FALSE
 magnitude,human_use,motorboat_crowding,exceedance_level,50,area_m2,10,,lower,TRUE,FALSE,FALSE
+magnitude,plants,threatened_plant,exceedance_level,50,,,0,higher,FALSE,FALSE,TRUE
+magnitude,plants,threatened_plant,exceedance_level,50,,,0,lower,FALSE,FALSE,TRUE
 magnitude,plants,upland_increase,exceedance_level,50,upland_pcnt,,10,higher,TRUE,TRUE,TRUE
 magnitude,plants,inland_beach_increase,exceedance_level,50,inland_beach_pcnt,,10,higher,TRUE,TRUE,TRUE
 magnitude,plants,emergent_increase,exceedance_level,50,emergent_pcnt,,10,higher,TRUE,TRUE,TRUE
@@ -92,7 +94,7 @@ magnitude,plants,submergent_algae_decrease,exceedance_level,90,submergent_algae_
 magnitude,plants,range_decrease,exceedance_range,range_10_90,,,0,lower,TRUE,TRUE,TRUE
 magnitude,plants,range_increase,exceedance_range,range_10_90,,,0,higher,TRUE,TRUE,TRUE
 duration,plants,high_levels,num_2yr,a50,,,0,lower,TRUE,TRUE,TRUE
-duration,plants,low_levels,num_2yr,b50,,,0,lower,TRUE,TRUE,TRUE
+duration,plants,low_levels,num_2yr,b50,,,0,higher,TRUE,TRUE,TRUE
 frequency,chemistry,stratification,stratification,percent_strat,,,0,lower,TRUE,FALSE,FALSE
 frequency,fish,turtle_bay,turtle_bay,percent_connect_warm,,,0,lower,TRUE,FALSE,FALSE
 frequency,human_use,motorboat,motorboat,percent_ok,,,0,lower,TRUE,FALSE,FALSE

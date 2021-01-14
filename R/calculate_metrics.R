@@ -68,6 +68,7 @@ calculate_metrics <- function(df_month,
                                           "stratification",
                                           "paddleboat",
                                           "motorboat",
+                                          "season_compare",
                                           "fast_rise_decade",
                                           "fast_fall_decade",
                                           "num_dur_decade",
@@ -398,18 +399,21 @@ calculate_metrics <- function(df_month,
     really_fast <- NISTunits::NISTftTOmeter(3)
     if ("fast_rise" %in% metrics | "fast_rise_decade" %in% metrics) {
       vals <- rising %>%
-              filter(.data$variable == "12") %>%
               mutate(rate_3ft = ifelse(.data$value >= really_fast, TRUE, FALSE),
                      rate_1_5ft = ifelse(.data$value >= fast, TRUE, FALSE)) %>%
-              count(.data$lake, .data$rate_1_5ft, .data$rate_3ft,
+              count(.data$lake, .data$variable, .data$rate_1_5ft, .data$rate_3ft,
                     .drop = FALSE) %>%
-              group_by(.data$lake) %>%
+              group_by(.data$lake, .data$variable) %>%
               summarise(rate_3ft = sum(.data$n[.data$rate_3ft == TRUE]),
                         rate_1_5ft = sum(.data$n[.data$rate_1_5ft == TRUE]),
                         .groups = "drop") %>%
-              melt(id.vars = "lake") %>%
-              mutate(metric = "fast_rise",
-                     variable = as.character(.data$variable)) %>%
+              select(lake = .data$lake,
+                     time = .data$variable,
+                     rise_3ft = .data$rate_3ft,
+                     rise_1_5ft = .data$rate_1_5ft) %>%
+              melt(id.vars = c("lake", "time")) %>%
+              mutate(metric = as.character(.data$variable),
+                     variable = .data$time) %>%
               select(.data$lake, .data$metric, .data$variable, .data$value)
       summary[[i]] <- vals; i <- i + 1
 
@@ -417,7 +421,7 @@ calculate_metrics <- function(df_month,
         vals <- vals %>%
                 left_join(nyrs, by = "lake") %>%
                 mutate(value = .data$value/(.data$n/10),
-                       metric = "fast_rise_decade") %>%
+                       metric = sprintf("%s_decade", .data$metric)) %>%
                 select(.data$lake, .data$metric, .data$variable, .data$value)
         summary[[i]] <- vals; i <- i + 1
       }
@@ -428,32 +432,58 @@ calculate_metrics <- function(df_month,
     really_fast <- NISTunits::NISTftTOmeter(-3)
     if ("fast_fall" %in% metrics | "fast_fall_decade" %in% metrics) {
       vals <- falling %>%
-              filter(.data$variable == "12") %>%
               mutate(rate_3ft = ifelse(.data$value <= really_fast, TRUE, FALSE),
                      rate_1_5ft = ifelse(.data$value <= fast, TRUE, FALSE)) %>%
-              count(.data$lake, .data$rate_1_5ft, .data$rate_3ft,
+              count(.data$lake, .data$variable, .data$rate_1_5ft, .data$rate_3ft,
                     .drop = FALSE) %>%
-              group_by(.data$lake) %>%
+              group_by(.data$lake, .data$variable) %>%
               summarise(rate_3ft = sum(.data$n[.data$rate_3ft == TRUE]),
                         rate_1_5ft = sum(.data$n[.data$rate_1_5ft == TRUE]),
                         .groups = "drop") %>%
-              melt(id.vars = "lake") %>%
-              mutate(metric = "fast_fall",
-                     variable = as.character(.data$variable)) %>%
+              select(lake = .data$lake,
+                     time = .data$variable,
+                     fall_3ft = .data$rate_3ft,
+                     fall_1_5ft = .data$rate_1_5ft) %>%
+              melt(id.vars = c("lake", "time")) %>%
+              mutate(metric = as.character(.data$variable),
+                     variable = .data$time) %>%
               select(.data$lake, .data$metric, .data$variable, .data$value)
       summary[[i]] <- vals; i <- i + 1
 
-      if ("fast_fall_decade" %in% metrics) {
+      if ("fast_rise_decade" %in% metrics) {
         vals <- vals %>%
                 left_join(nyrs, by = "lake") %>%
                 mutate(value = .data$value/(.data$n/10),
-                       metric = "fast_fall_decade") %>%
+                       metric = sprintf("%s_decade", .data$metric)) %>%
                 select(.data$lake, .data$metric, .data$variable, .data$value)
         summary[[i]] <- vals; i <- i + 1
       }
     }
 
     # 5. TIMING ================================================================
+    if ("season_compare" %in% metrics & dt %in% c(1,3)) {
+        vals    <- df_season %>%
+                   arrange(.data$date) %>%
+                   group_by(.data$lake, .data$month) %>%
+                   mutate(diff = .data$level - lag(.data$level),
+                          higher = ifelse(.data$diff > 0, TRUE, FALSE)) %>%
+                   ungroup() %>%
+                   count(.data$lake, .data$month, .data$higher) %>%
+                   filter(!is.na(.data$higher)) %>%
+                   group_by(.data$lake, .data$month) %>%
+                   mutate(nyrs = sum(.data$n)) %>%
+                   ungroup() %>%
+                   mutate(pcnt = 100*.data$n/.data$nyrs,
+                          metric = ifelse(.data$higher,
+                                          "season_higher", "season_lower"),
+                          variable = as.character(.data$month)) %>%
+                   select(lake = .data$lake,
+                          metric = .data$metric,
+                          variable = .data$variable,
+                          value = .data$pcnt)
+        summary[[i]] <- vals; i <- i + 1
+    }
+
     if ("good_spawning" %in% metrics & dt %in% c(1, 3)) {
       if (min(nyrs$n) >= 2) {
         spawning <- calculate_spawning(df)

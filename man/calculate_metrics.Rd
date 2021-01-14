@@ -12,8 +12,8 @@ calculate_metrics(
     "exceedance_range", "depart_median", "median_dur", "cv_dur", "num_dur", "num_2yr",
     "median_rise_rate", "cv_rise_rate", "median_fall_rate", "cv_fall_rate", "fast_rise",
     "fast_fall", "good_spawning", "move_dock", "turtle_bay", "stratification",
-    "paddleboat", "motorboat", "fast_rise_decade", "fast_fall_decade", "num_dur_decade",
-    "num_2yr_decade", "move_dock_decade"),
+    "paddleboat", "motorboat", "season_compare", "fast_rise_decade", "fast_fall_decade",
+    "num_dur_decade", "num_2yr_decade",      "move_dock_decade"),
   dur_exceeds = NULL
 )
 }

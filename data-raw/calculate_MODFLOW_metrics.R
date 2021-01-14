@@ -87,7 +87,8 @@ for (scenario in c("no_irr", "irr")) {
                                                  "turtle_bay",
                                                  "stratification",
                                                  "paddleboat",
-                                                 "motorboat"),
+                                                 "motorboat",
+                                                 "season_compare"),
                                      dur_exceeds = dur_exceeds)
 
     # Track scenario, sim, and add to list

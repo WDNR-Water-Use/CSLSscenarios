@@ -1,0 +1,443 @@
+---
+title: "MODFLOW_hydrology"
+output: 
+  rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{MODFLOW_hydrology}
+  %\VignetteEngine{knitr::rmarkdown}
+  \usepackage[utf8]{inputenc}
+---
+
+```{r setup, eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE}
+library(CSLSscenarios)
+library(dplyr)
+library(reshape2)
+library(NISTunits)
+library(lubridate)
+library(ggplot2)
+library(extrafont)
+library(knitr)
+
+scenarios <- data.frame(scenario = c("no_irr", "irr", "fut_irr"),
+                        scenario_name = c("No Irrigation", 
+                                          "Current Irrigation",
+                                          "Future Irrigation"),
+                        colors = c("steelblue4", "goldenrod1", "darkorange"))
+
+# Lake Levels ------------------------------------------------------------------
+MODFLOW <- CSLSdata::MODFLOW %>%
+           filter(.data$scenario %in% scenarios$scenario,
+                  year(.data$date) >= 1986,
+                  year(.data$date) <= 2018) %>%
+           mutate(year = year(.data$date),
+                  month = month(.data$date),
+                  time = .data$year - min(.data$year) + .data$month/12,
+                  level = NISTmeterTOft(.data$level_m)) %>%
+           left_join(scenarios, by = "scenario") %>%
+           select(scenario = .data$scenario_name,
+                  sim = .data$sim,
+                  lake = .data$lake, 
+                  time = .data$time,
+                  level = .data$level)
+
+# Metrics ----------------------------------------------------------------------
+MODFLOW_metrics <- CSLSscenarios::MODFLOW_metrics %>%
+                   group_by(.data$lake, .data$metric, .data$variable,
+                            .data$scenario, .data$series) %>%
+                   summarise(base = .data$value[which(.data$sim == 1)],
+                             sd = sd(.data$value, na.rm = TRUE),
+                             .groups = "drop") %>%
+                   left_join(scenarios, by = "scenario") %>%
+                   select(scenario = .data$scenario_name, 
+                          lake = .data$lake, 
+                          metric = .data$metric, 
+                          variable = .data$variable, 
+                          series = .data$series, 
+                          base = .data$base, 
+                          sd = .data$sd)
+
+MODFLOW_metrics$scenario <- factor(MODFLOW_metrics$scenario, 
+                                   levels = scenarios$scenario_name)
+
+```
+
+```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE}
+# Unit Conversions
+m_metrics    <- c("exceedance_level", "mean_depth", "max_depth", "median_level",
+                  "median_rise_rate", "median_fall_rate")
+m2_metrics   <- c("area", "centrarchid_substrate")
+m3_metrics   <- c("volume")
+
+# Rounding
+d1_metrics   <- c("exceedance_level", "mean_depth", "max_depth", "area",
+                  "centrarchid_substrate", "upland_pcnt", "inland_beach_pcnt", 
+                  "emergent_pcnt", "floating_pcnt", "submergent_pcnt", 
+                  "submergent_algae_pcnt", "submergent_weed_pcnt",
+                  "median_level", "cv_level", "median_rise_rate",
+                  "median_fall_rate", "season_higher", 
+                  "season_lower", "good_spawning")
+d0_metrics   <- c("volume", "num_dur", "num_2yr", "median_dur", "cv_dur",
+                  "rise_3ft", "rise_1_5ft", "fall_3ft", "fall_1_5ft", 
+                  "cv_rise_rate", "cv_fall_rate")
+
+# Friendly names
+med_metrics <- data.frame(metric = c("median_level", "cv_level"),
+                             name = c("Median Lake Level (ft)",
+                                      "CV of Max Depth (%)"))
+med_var    <- data.frame(variable = c("0", "1", "4", "7", "10"),
+                         var_name = c("Overall", "Winter", "Spring", 
+                                      "Summer", "Fall"))
+
+exceed_metrics <- data.frame(metric = c("exceedance_level", 
+                                        "area", 
+                                        "volume", 
+                                        "mean_depth", 
+                                        "max_depth", 
+                                        "centrarchid_substrate", 
+                                        "upland_pcnt", 
+                                        "inland_beach_pcnt", 
+                                        "emergent_pcnt", 
+                                        "floating_pcnt", 
+                                        "submergent_pcnt", 
+                                        "submergent_algae_pcnt", 
+                                        "submergent_weed_pcnt"),
+                             name = c("Elevation (ft)",
+                                      "Area (acres)",
+                                      "Volume (acre-ft)",
+                                      "Mean Depth (ft)",
+                                      "Max Depth (ft)",
+                                      "Substrate Area (acres)",
+                                      "Plants: Upland (% of lake)",
+                                      "Plants: Inland Beach (% of lake)",
+                                      "Plants: Emergents (% of lake)",
+                                      "Plants: Floating-Leaf (% of lake)",
+                                      "Plants: Submergents (% of lake)",
+                                      "Plants: Submergents (Algae) (% of lake)",
+                                      "Plants: Submergents (Pondweeds) (% of lake)"))
+exceed_var <- data.frame(variable = c("10", "25", "50", "75", "90"),
+                         var_name = c("Infrequent High", 
+                                      "Frequent High",
+                                      "Median", 
+                                      "Frequent Low",
+                                      "Infrequent Low"))
+
+dur_metrics <- data.frame(metric = c("num_dur", "num_2yr", 
+                                     "median_dur", "cv_dur"),
+                             name = c("Times Exceeded for 1+ months",
+                                      "Times Exceeded for 2+ yrs",
+                                      "Median Duration (months)",
+                                      "CV of Duration (%)"))
+dur_var    <- data.frame(variable = c("10", "25", "a50", "b50", "75", "90"),
+                         var_name = c("Infrequent High", 
+                                      "Frequent High",
+                                      "Above Median",
+                                      "Below Median", 
+                                      "Frequent Low",
+                                      "Infrequent Low"))
+
+rate_metrics <- data.frame(metric = c("median_rise_rate", 
+                                      "cv_rise_rate", 
+                                      "rise_1_5ft",
+                                      "rise_3ft",
+                                      "median_fall_rate", 
+                                      "cv_fall_rate", 
+                                      "fall_1_5ft",
+                                      "fall_3ft"),
+                           name = c("Median Rise Rate (ft/time)",
+                                    "CV of Rise Rate (%)",
+                                    "Times Rise Rate > 1.5 ft/time",
+                                    "Times Rise Rate > 3 ft/time",
+                                    "Median Fall Rate (ft/time)",
+                                    "CV of Fall Rate (%)",
+                                    "Times Fall Rate > 1.5 ft/time",
+                                    "Times Fall Rate > 3 ft/time"))
+rate_var    <- data.frame(variable = c("1", "3", "12"),
+                          var_name = c("1 Month", "3 Month", "12 Month"))
+
+time_metrics <- data.frame(metric = c("season_higher", "good_spawning"),
+                           name = c("% Years > Prior Season",
+                                    "% Years > Prior Growing Season"))
+time_var    <- data.frame(variable = c("1", "4", "high_spring", "7", "10"),
+                          var_name = c("Winter", "Spring", "Spring", 
+                                       "Summer", "Fall"))
+```
+
+```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE}
+format_table <- function(df, metrics, variables, series = "month",
+                         m_metrics, m2_metrics, m3_metrics,
+                         d1_metrics, d0_metrics) {
+  
+  # Filter to metrics of interest ----------------------------------------------
+  this_df <- df %>%
+             filter(.data$series == !!series,
+                    .data$metric %in% metrics$metric,
+                    .data$variable %in% variables$variable) %>%
+             select(.data$scenario, .data$metric, .data$variable, 
+                    .data$base, .data$sd) %>%
+             left_join(metrics, by = "metric") %>%
+             left_join(variables, by = "variable")
+  this_df$name     <- factor(this_df$name, levels = metrics$name)
+  this_df$var_name <- factor(this_df$var_name, levels = unique(variables$var_name))
+  
+  # Convert Units --------------------------------------------------------------
+  unit_df <- this_df %>%
+             mutate(base = ifelse(.data$metric %in% m_metrics,
+                                  NISTmeterTOft(.data$base),
+                                  ifelse(.data$metric %in% m2_metrics,
+                                         NISTsqrMeterTOacre(.data$base),
+                                         ifelse(.data$metric %in% m3_metrics,
+                                                NISTcubMeterTOacreFt(.data$base),
+                                                .data$base))),
+                    sd = ifelse(.data$metric %in% m_metrics,
+                                NISTmeterTOft(.data$sd),
+                                ifelse(.data$metric %in% m2_metrics,
+                                       NISTsqrMeterTOacre(.data$sd),
+                                       ifelse(.data$metric %in% m3_metrics,
+                                              NISTcubMeterTOacreFt(.data$sd),
+                                              .data$sd))))
+  # Round values and convert to text -------------------------------------------
+  round_df <- unit_df %>%
+              mutate(base = ifelse(.data$metric %in% d1_metrics,
+                                   sprintf("%.1f", .data$base),
+                                   ifelse(.data$metric %in% d0_metrics,
+                                          sprintf("%.0f", .data$base),
+                                          sprintf("%f", .data$base))),
+                     sd = ifelse(.data$metric %in% d1_metrics,
+                                 sprintf("%.1f", .data$sd),
+                                 ifelse(.data$metric %in% d0_metrics,
+                                        sprintf("%.0f", .data$sd),
+                                        sprintf("%f", .data$sd))),
+                     text = sprintf("%s \u00B1 %s", .data$base, .data$sd))
+
+  # Format data frame ----------------------------------------------------------
+  table_df <- round_df %>%
+              select(.data$scenario, .data$name, .data$var_name, .data$text) %>%
+              dcast(scenario+name~var_name, value.var = "text")
+  colnames(table_df) <- c("Scenario", "Metric", unique(variables$var_name))
+  
+  return(table_df)
+}
+
+```
+
+```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE}
+plot_levels <- function(df, scenarios, only_base = FALSE, text_size = 10) {
+  if (only_base) {
+    plot_obj <- ggplot(df)
+  } else {
+    plot_obj <- ggplot(df) +
+                geom_line(aes(x = .data$time,
+                              y = .data$level,
+                              group = interaction(.data$scenario, .data$sim),
+                              color = .data$scenario),
+                          alpha = 0.03)
+  }
+  plot_obj <- plot_obj +
+              geom_line(data = filter(df, .data$sim == 1),
+                        aes(x = .data$time,
+                            y = .data$level,
+                            group = .data$scenario,
+                            color = .data$scenario)) +
+              scale_color_manual(name = "Scenario",
+                                 breaks = scenarios$scenario_name,
+                                 values = scenarios$colors,
+                                 labels = scenarios$scenario_name) +
+              labs(x = "Time (yrs)", y = "Lake Elevation (ft)") +
+              scale_x_continuous(expand = c(0,0),
+                                 breaks = seq(0,34,5),
+                                 minor_breaks = seq(0, 34, 1)) +
+              facet_wrap(~lake, scales = "free_y", ncol = 1) +
+              theme_bw() +
+              theme(text = element_text(family = "Segoe UI Semilight",
+                                        size = text_size),
+                    legend.position = "top")
+  
+  return(plot_obj)
+}
+```
+
+```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE}
+plot_exceedances <- function(df, scenarios, text_size = 10,
+                             base_sim = 1) {
+  exceeds <- NULL
+  for (scenario in unique(df$scenario)) {
+    this_scenario <- df %>%
+                     filter(.data$scenario == !!scenario,
+                            .data$sim == base_sim)
+    this_exceeds <- calculate_exceedances(this_scenario, 
+                                        probs = seq(1,99,1)) %>%
+                    mutate(probs = as.numeric(as.character(.data$variable)),
+                           scenario = scenario)
+    exceeds <- rbind(exceeds, this_exceeds)
+  }
+  
+  plot_obj <- ggplot(exceeds) +
+              geom_line(aes(x = .data$probs,
+                            y = .data$value,
+                            group = .data$scenario,
+                            color = .data$scenario)) +
+              scale_color_manual(name = "Scenario",
+                                 breaks = scenarios$scenario_name,
+                                 values = scenarios$colors,
+                                 labels = scenarios$scenario_name) +
+              scale_x_continuous(expand = c(0,0),
+                                 breaks = seq(0,100,10)) +
+              labs(x = "Exceedance Probability (%)", 
+                   y = "Lake Elevation (ft)") +
+              facet_wrap(~lake, scales = "free_y", ncol = 1) +
+              theme_bw() +
+              theme(text = element_text(family = "Segoe UI Semilight",
+                                        size = text_size),
+                    legend.position = "top")
+  
+  return(plot_obj)
+}
+```
+
+## Figures
+
+```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE, fig.width=6.5, fig.height=6}
+plot_levels(MODFLOW, scenarios, only_base = TRUE)
+```
+
+<br>
+
+```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE, fig.width=6.5, fig.height=6}
+plot_exceedances(MODFLOW, scenarios)
+```
+
+
+## Pleasant Lake
+
+```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE, fig.width=6.5, fig.height=4}
+lake_hydro  <- MODFLOW_metrics %>% filter(.data$lake == "Pleasant")
+```
+
+
+**Median Levels**
+
+```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE}
+kable(format_table(lake_hydro, med_metrics, med_var, series = "season", 
+             m_metrics, m2_metrics, m3_metrics, d1_metrics, d0_metrics))
+```
+
+<br>
+
+**Exceedance Levels**
+
+```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE}
+kable(format_table(lake_hydro, exceed_metrics, exceed_var, series = "month", 
+             m_metrics, m2_metrics, m3_metrics, d1_metrics, d0_metrics))
+```
+
+<br>
+
+**Frequency and Duration**
+```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE}
+kable(format_table(lake_hydro, dur_metrics, dur_var, series = "month", 
+             m_metrics, m2_metrics, m3_metrics, d1_metrics, d0_metrics))
+```
+
+<br>
+
+**Rate of Change**
+```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE}
+kable(format_table(lake_hydro, rate_metrics, rate_var, series = "month", 
+             m_metrics, m2_metrics, m3_metrics, d1_metrics, d0_metrics))
+```
+
+**Timing**
+```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE}
+kable(format_table(lake_hydro, time_metrics, time_var, series = "month", 
+             m_metrics, m2_metrics, m3_metrics, d1_metrics, d0_metrics))
+```
+
+## Long Lake
+
+```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE, fig.width=6.5, fig.height=4}
+lake_hydro  <- MODFLOW_metrics %>% filter(.data$lake == "Long")
+```
+
+
+**Median Levels**
+
+```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE}
+kable(format_table(lake_hydro, med_metrics, med_var, series = "season", 
+             m_metrics, m2_metrics, m3_metrics, d1_metrics, d0_metrics))
+```
+
+<br>
+
+**Exceedance Levels**
+
+```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE}
+kable(format_table(lake_hydro, exceed_metrics, exceed_var, series = "month", 
+             m_metrics, m2_metrics, m3_metrics, d1_metrics, d0_metrics))
+```
+
+<br>
+
+**Frequency and Duration**
+```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE}
+kable(format_table(lake_hydro, dur_metrics, dur_var, series = "month", 
+             m_metrics, m2_metrics, m3_metrics, d1_metrics, d0_metrics))
+```
+
+<br>
+
+**Rate of Change**
+```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE}
+kable(format_table(lake_hydro, rate_metrics, rate_var, series = "month", 
+             m_metrics, m2_metrics, m3_metrics, d1_metrics, d0_metrics))
+```
+
+**Timing**
+```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE}
+kable(format_table(lake_hydro, time_metrics, time_var, series = "month", 
+             m_metrics, m2_metrics, m3_metrics, d1_metrics, d0_metrics))
+```
+
+## Plainfield Lake
+
+```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE, fig.width=6.5, fig.height=4}
+lake_hydro  <- MODFLOW_metrics %>% filter(.data$lake == "Plainfield")
+```
+
+
+**Median Levels**
+
+```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE}
+kable(format_table(lake_hydro, med_metrics, med_var, series = "season", 
+             m_metrics, m2_metrics, m3_metrics, d1_metrics, d0_metrics))
+```
+
+<br>
+
+**Exceedance Levels**
+
+```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE}
+kable(format_table(lake_hydro, exceed_metrics, exceed_var, series = "month", 
+             m_metrics, m2_metrics, m3_metrics, d1_metrics, d0_metrics))
+```
+
+<br>
+
+**Frequency and Duration**
+```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE}
+kable(format_table(lake_hydro, dur_metrics, dur_var, series = "month", 
+             m_metrics, m2_metrics, m3_metrics, d1_metrics, d0_metrics))
+```
+
+<br>
+
+**Rate of Change**
+```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE}
+kable(format_table(lake_hydro, rate_metrics, rate_var, series = "month", 
+             m_metrics, m2_metrics, m3_metrics, d1_metrics, d0_metrics))
+```
+
+**Timing**
+```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE}
+kable(format_table(lake_hydro, time_metrics, time_var, series = "month", 
+             m_metrics, m2_metrics, m3_metrics, d1_metrics, d0_metrics))
+```

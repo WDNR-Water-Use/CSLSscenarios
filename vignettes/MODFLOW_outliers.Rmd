@@ -1,0 +1,450 @@
+---
+title: "MODFLOW_outliers"
+output: 
+  rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{MODFLOW_outliers}
+  %\VignetteEngine{knitr::rmarkdown}
+  \usepackage[utf8]{inputenc}
+---
+
+```{r setup, eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE}
+library(CSLSscenarios)
+library(dplyr)
+library(reshape2)
+library(ggplot2)
+library(extrafont)
+library(knitr) # for kable
+library(lubridate)
+
+
+rules            <- CSLSscenarios::ecological_rules %>%
+                    select(.data$hydrology, .data$metric, .data$variable,
+                           .data$Pleasant, .data$Long, .data$Plainfield) %>%
+                    unique() %>%
+                    melt(id.vars = c("hydrology", "metric", "variable")) 
+colnames(rules)  <- c("hydrology", "metric", "variable", "lake", "value")
+rules            <- rules %>%
+                    filter(.data$value == TRUE) %>%
+                    select(.data$lake, .data$hydrology, .data$metric, .data$variable)
+useful_metrics   <- unique(rules[,c("lake", "hydrology", "metric", "variable")])
+MODFLOW_metrics  <- CSLSscenarios::MODFLOW_metrics %>%
+                    filter(.data$series == "month") %>%
+                    inner_join(useful_metrics,
+                               by = c("lake", "metric", "variable"))
+
+summary_metrics  <- MODFLOW_metrics %>%
+                    group_by(.data$lake, .data$scenario,
+                             .data$metric, .data$variable) %>%
+                    summarise(base = .data$value[which(.data$sim == 1)],
+                              q25 = quantile(.data$value,
+                                             probs = 0.75,
+                                             type = 6,
+                                             na.rm = TRUE),
+                              q75 = quantile(.data$value,
+                                             probs = 0.25,
+                                             type = 6,
+                                             na.rm = TRUE),
+                              IQR = IQR(.data$value, 
+                                        type = 6,
+                                        na.rm = TRUE),
+                              upper = .data$q25 + 1.5*.data$IQR,
+                              lower = .data$q75 - 1.5*.data$IQR,
+                              sd = sd(.data$value, na.rm = TRUE),
+                              .groups = "drop") %>%
+                    mutate_at(c("base", "q25", "q75", "IQR", "upper", 
+                                "lower", "sd"), as.numeric)
+
+outliers        <- MODFLOW_metrics %>%
+                   left_join(summary_metrics, 
+                             by = c("lake", "scenario", "metric", "variable")) %>%
+                   mutate(outlier = ifelse((.data$value > .data$upper | 
+                                              .data$value < .data$lower),
+                                           TRUE, FALSE))
+outliers$sim     <- factor(outliers$sim)
+outliers$outlier <- factor(outliers$outlier)
+
+```
+
+## Overview
+
+I limited this evaluation to only those hydrologic metrics which we use for at
+least one of our ecological rules. This is <50% of all metrics we calculate, but
+are the metrics most meaningful to us.
+
+<br>
+
+### Plots
+```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE, fig.width=6.5, fig.height=6}
+out1 <- c(304, 233, 25)
+out2 <- c(116, 224)
+
+
+MODFLOW <- CSLSdata::MODFLOW %>%
+           filter(year(.data$date) >= 1986,
+                  year(.data$date) <= 2018) %>%
+           select(.data$scenario, .data$sim, .data$lake, 
+                  .data$level_m, .data$date)
+MOD1    <- MODFLOW %>% filter(.data$scenario == "no_irr")
+MOD2    <- MODFLOW %>% filter(.data$scenario == "irr")
+DIFF    <- full_join(MOD1, MOD2,
+                     by = c("lake", "sim", "date")) %>%
+           mutate(diff = .data$level_m.y - .data$level_m.x)
+
+
+ggplot() +
+  geom_line(data = filter(MOD1, .data$sim %in% c(out1, out2)),
+            aes(x = .data$date,
+                y = .data$level_m,
+                group = as.factor(.data$sim),
+                color = as.factor(.data$sim),
+                linetype = "No Irr")) +
+  geom_line(data = filter(MOD2, .data$sim %in% out1),
+            aes(x = .data$date,
+                y = .data$level_m,
+                group = as.factor(.data$sim),
+                color = as.factor(.data$sim),
+                linetype = "Current Irr")) +
+  scale_linetype_manual(breaks = c("No Irr", "Current Irr"),
+                        values = c("solid", "dashed")) +
+  scale_color_brewer(name = "Simulation",
+                     palette = "Dark2") +
+  labs(x = "", y = "Lake Elevation (m)", linetype = "") +
+  facet_wrap(~lake, ncol = 1, scales = "free_y") +
+  theme_bw()
+
+
+ggplot() +
+  geom_line(data = DIFF,
+            aes(x = .data$date,
+                y = .data$diff,
+                group = as.factor(.data$sim)),
+            color = "black",
+            alpha = 0.05) +
+  geom_line(data = filter(DIFF, .data$sim %in% out1),
+            aes(x = .data$date,
+                y = .data$diff,
+                group = as.factor(.data$sim),
+                color = "Reg Outliers")) +
+  geom_line(data = filter(DIFF, .data$sim %in% out2),
+            aes(x = .data$date,
+                y = .data$diff,
+                group = as.factor(.data$sim),
+                color = "Diff Outliers")) +
+  scale_color_manual(name = "Outlier Type",
+                     breaks = c("Reg Outliers",
+                                "Diff Outliers"),
+                     values = c("blue", "red")) +
+  labs(x = "", y = "Difference (m)") +
+  facet_wrap(~lake, ncol = 1, scales = "free_y") +
+  theme_bw()
+
+
+
+ggplot() +
+  geom_line(data = MOD1,
+            aes(x = .data$date,
+                y = .data$level_m,
+                group = as.factor(.data$sim)),
+            color = "black",
+            alpha = 0.05) +
+  geom_line(data = filter(MOD1, .data$sim %in% c(304)),
+            aes(x = .data$date,
+                y = .data$level_m),
+            color = "red") +
+  labs(x = "", y = "Lake Elevation (m)", linetype = "") +
+  facet_wrap(~lake, ncol = 1, scales = "free_y") +
+  theme_bw()
+```
+
+## Evaluate scenario value independently
+
+I'd consider the **top 3 outliers to be #304, #233, and #25**, but other
+simulations still have substantial amounts of outliers for the metrics we care
+about.
+
+<br>
+
+### All outliers
+
+Evaluate all metrics used for ecological rules, for all 3 lakes, for all 2
+scenarios ("irr" and "no irr"). Total metrics evaluated:
+
+  * 66 for each simulation
+
+<br>
+
+```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE}
+
+outliers_all <- outliers %>%
+                group_by(.data$outlier, .data$sim, .drop = FALSE) %>%
+                summarise(count = n(),
+                          .groups = "drop") %>%
+                filter(.data$outlier == "TRUE") %>%
+                arrange(desc(.data$count)) %>%
+                select(.data$sim, .data$count)
+kable(head(outliers_all, 10), caption = "Top 10 outlier simulations")
+
+```
+
+<br>
+
+```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE}
+
+outliers_all$index <- row.names(outliers_all)
+ggplot(outliers_all) +
+  geom_point(aes(x = as.numeric(.data$index),
+                 y = .data$count)) +
+  labs(x = "Simulation Rank",
+       y = "Number of Outliers in Simulation") +
+  theme_bw()
+ggplot(outliers_all) +
+  geom_histogram(aes(x = .data$count),
+                 binwidth = 1) +
+  labs(x = "Number of Outliers",
+       y = "Number of Simulations") +
+  theme_bw()
+
+```
+
+<br>
+
+
+### Break down by: hydrology
+
+Break outliers down by type of metric, but lump scenarios and lakes. Total
+metrics evaluated:
+
+  * 12 duration
+  * 12 frequency
+  * 36 magnitude
+  * 4 rate of change
+  * 2 timing
+
+<br>
+
+```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE}
+check <- outliers %>% 
+         count(.data$sim, 
+               .data$hydrology,  
+               .drop = FALSE)
+
+outliers_sub <- outliers %>%
+                group_by(.data$outlier, .data$sim, 
+                         .data$hydrology,  
+                         .drop = FALSE) %>%
+                summarise(count = n(),
+                          .groups = "drop") %>%
+                filter(.data$outlier == "TRUE") %>%
+                filter(!is.na(.data$hydrology)) %>%
+                select(.data$hydrology, .data$sim, .data$count) %>%
+                dcast(sim~hydrology, value.var = "count",
+                      fill = 0) 
+kable(head(outliers_sub %>% arrange(desc(.data$duration)), 10), 
+           caption = "Top 10, arranged by duration")
+kable(head(outliers_sub %>% arrange(desc(.data$frequency)), 10), 
+           caption = "Top 10, arranged by frequency")
+kable(head(outliers_sub %>% arrange(desc(.data$magnitude)), 10), 
+      caption = "Top 10, arranged by magnitude")
+kable(head(outliers_sub %>% arrange(desc(.data$rate_of_change)), 10), 
+           caption = "Top 10, arranged by rate_of_change")
+kable(head(outliers_sub %>% arrange(desc(.data$timing)), 10), 
+           caption = "Top 10, arranged by timing")
+
+```
+
+<br>
+
+```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE, fig.height=3.5, fig.width=6.5}
+plot_outliers_sub <- melt(outliers_sub, id.vars = "sim")
+ggplot(plot_outliers_sub) +
+  geom_histogram(aes(x = .data$value),
+                 binwidth = 1) +
+  facet_wrap(~variable) +
+  labs(x = "Number of Outliers",
+       y = "Number of Simulations") +
+  theme_bw()
+
+```
+
+<br>
+
+### Break down by: hydrology and scenario
+
+Break outliers down by type of metric and scenario but lump by lake. Total
+metrics evaluated for each scenario:
+
+  * 6 duration
+  * 6 frequency
+  * 18 magnitude
+  * 2 rate of change
+  * 1 timing
+
+<br>
+
+```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE}
+outliers_sub <- outliers %>%
+                group_by(.data$outlier, .data$sim, 
+                         .data$hydrology, .data$scenario, 
+                         .drop = FALSE) %>%
+                summarise(count = n(),
+                          .groups = "drop") %>%
+                filter(.data$outlier == "TRUE") %>%
+                filter(!is.na(.data$hydrology)) %>%
+                select(.data$hydrology, .data$scenario, .data$sim, .data$count) %>%
+                dcast(sim+scenario~hydrology, value.var = "count",
+                      fill = 0) 
+kable(head(outliers_sub %>% arrange(desc(.data$duration)), 20), 
+           caption = "Top 20, arranged by duration")
+kable(head(outliers_sub %>% arrange(desc(.data$frequency)), 20), 
+           caption = "Top 20, arranged by frequency")
+kable(head(outliers_sub %>% arrange(desc(.data$magnitude)), 20), 
+      caption = "Top 20, arranged by magnitude")
+kable(head(outliers_sub %>% arrange(desc(.data$rate_of_change)), 20), 
+           caption = "Top 20, arranged by rate_of_change")
+kable(head(outliers_sub %>% arrange(desc(.data$timing)), 20), 
+           caption = "Top 20, arranged by timing")
+
+```
+
+<br>
+
+## Evaluate paired differences
+
+I'd focus on the **top 2 outliers as #224 and #116**, but there's an even
+fuzzier line for the top outlier simulations here.
+
+### Outliers for differences 
+
+Evaluate outliers in metric differences (no_irr - irr). Total metrics evaluated:
+
+  * 33 for each simulation
+ 
+
+```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE}
+df1 <- MODFLOW_metrics %>% 
+       filter(.data$scenario == "no_irr") %>%
+       select(.data$hydrology, .data$metric, .data$variable, .data$lake, 
+              .data$sim, .data$value)
+df2 <- MODFLOW_metrics %>% 
+       filter(.data$scenario == "irr")  %>%
+       select(.data$hydrology, .data$metric, .data$variable, .data$lake, 
+              .data$sim, .data$value)
+combined <- full_join(df1, df2, 
+                      by = c("lake", "sim", "metric", "variable", "hydrology"))
+combined$diff <- combined$value.x - combined$value.y
+
+summary_combined <- combined %>%
+                    group_by(.data$lake, .data$hydrology, .data$metric, 
+                             .data$variable) %>%
+                    summarise(base = .data$diff[which(.data$sim == 1)],
+                              q25 = quantile(.data$diff,
+                                             probs = 0.75,
+                                             type = 6,
+                                             na.rm = TRUE),
+                              q75 = quantile(.data$diff,
+                                             probs = 0.25,
+                                             type = 6,
+                                             na.rm = TRUE),
+                              IQR = IQR(.data$diff, 
+                                        type = 6,
+                                        na.rm = TRUE),
+                              upper = .data$q25 + 1.5*.data$IQR,
+                              lower = .data$q75 - 1.5*.data$IQR,
+                              sd = sd(.data$diff, na.rm = TRUE),
+                              .groups = "drop") %>%
+                    mutate_at(c("base", "q25", "q75", "IQR", "upper", 
+                                "lower", "sd"), as.numeric)
+outliers        <- combined %>%
+                   left_join(summary_combined, 
+                             by = c("lake", "hydrology", 
+                                    "metric", "variable")) %>%
+                   mutate(outlier = ifelse((.data$diff > .data$upper | 
+                                              .data$diff < .data$lower),
+                                           TRUE, FALSE))
+
+outliers_all <- outliers %>%
+                group_by(.data$outlier, .data$sim, 
+                         .drop = FALSE) %>%
+                summarise(count = n(),
+                          .groups = "drop") %>%
+                filter(.data$outlier == TRUE) %>%
+                select(.data$sim, .data$count) %>%
+                arrange(desc(.data$count))
+kable(head(outliers_all, 10), caption = "Top 10 outliers - all differences")
+
+```
+
+
+<br>
+
+```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE}
+
+outliers_all$index <- row.names(outliers_all)
+ggplot(outliers_all) +
+  geom_point(aes(x = as.numeric(.data$index),
+                 y = .data$count)) +
+  labs(x = "Simulation Rank",
+       y = "Number of Outliers in Simulation") +
+  theme_bw()
+ggplot(outliers_all) +
+  geom_histogram(aes(x = .data$count),
+                 binwidth = 1) +
+  labs(x = "Number of Outliers",
+       y = "Number of Simulations") +
+  theme_bw()
+
+```
+
+<br>
+
+
+### Break down by: hydrology
+
+Break outliers down by type of metric, but lump scenarios and lakes. Total
+metrics evaluated:
+
+  * 6 duration
+  * 6 frequency
+  * 18 magnitude
+  * 2 rate of change (there are no outliers for rate of change)
+  * 1 timing
+
+<br>
+
+```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE}
+outliers_sub <- outliers %>%
+                group_by(.data$outlier, .data$sim, 
+                         .data$hydrology,  
+                         .drop = FALSE) %>%
+                summarise(count = n(),
+                          .groups = "drop") %>%
+                filter(.data$outlier == "TRUE") %>%
+                filter(!is.na(.data$hydrology)) %>%
+                select(.data$hydrology, .data$sim, .data$count) %>%
+                dcast(sim~hydrology, value.var = "count",
+                      fill = 0) 
+kable(head(outliers_sub %>% arrange(desc(.data$duration)), 10), 
+           caption = "Top 10, arranged by duration")
+kable(head(outliers_sub %>% arrange(desc(.data$frequency)), 10), 
+           caption = "Top 10, arranged by frequency")
+kable(head(outliers_sub %>% arrange(desc(.data$magnitude)), 10), 
+      caption = "Top 10, arranged by magnitude")
+kable(head(outliers_sub %>% arrange(desc(.data$timing)), 10), 
+           caption = "Top 10, arranged by timing")
+
+```
+
+<br>
+
+```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE, fig.height=3.5, fig.width=6.5}
+plot_outliers_sub <- melt(outliers_sub, id.vars = "sim")
+ggplot(plot_outliers_sub) +
+  geom_histogram(aes(x = .data$value),
+                 binwidth = 1) +
+  facet_wrap(~variable) +
+  labs(x = "Number of Outliers",
+       y = "Number of Simulations") +
+  theme_bw()
+
+```
