@@ -1,7 +1,8 @@
 ---
 title: "MODFLOW_outliers"
 output: 
-  rmarkdown::html_vignette
+  rmarkdown::html_vignette:
+    toc: true
 vignette: >
   %\VignetteIndexEntry{MODFLOW_outliers}
   %\VignetteEngine{knitr::rmarkdown}
@@ -14,8 +15,8 @@ library(dplyr)
 library(reshape2)
 library(ggplot2)
 library(extrafont)
-library(knitr) # for kable
 library(lubridate)
+library(DT)
 
 
 rules            <- CSLSscenarios::ecological_rules %>%
@@ -86,7 +87,7 @@ MODFLOW <- CSLSdata::MODFLOW %>%
            select(.data$scenario, .data$sim, .data$lake, 
                   .data$level_m, .data$date)
 MOD1    <- MODFLOW %>% filter(.data$scenario == "no_irr")
-MOD2    <- MODFLOW %>% filter(.data$scenario == "irr")
+MOD2    <- MODFLOW %>% filter(.data$scenario == "cur_irr")
 DIFF    <- full_join(MOD1, MOD2,
                      by = c("lake", "sim", "date")) %>%
            mutate(diff = .data$level_m.y - .data$level_m.x)
@@ -141,20 +142,20 @@ ggplot() +
 
 
 
-ggplot() +
-  geom_line(data = MOD1,
-            aes(x = .data$date,
-                y = .data$level_m,
-                group = as.factor(.data$sim)),
-            color = "black",
-            alpha = 0.05) +
-  geom_line(data = filter(MOD1, .data$sim %in% c(304)),
-            aes(x = .data$date,
-                y = .data$level_m),
-            color = "red") +
-  labs(x = "", y = "Lake Elevation (m)", linetype = "") +
-  facet_wrap(~lake, ncol = 1, scales = "free_y") +
-  theme_bw()
+# ggplot() +
+#   geom_line(data = MOD1,
+#             aes(x = .data$date,
+#                 y = .data$level_m,
+#                 group = as.factor(.data$sim)),
+#             color = "black",
+#             alpha = 0.05) +
+#   geom_line(data = filter(MOD1, .data$sim %in% c(304)),
+#             aes(x = .data$date,
+#                 y = .data$level_m),
+#             color = "red") +
+#   labs(x = "", y = "Lake Elevation (m)", linetype = "") +
+#   facet_wrap(~lake, ncol = 1, scales = "free_y") +
+#   theme_bw()
 ```
 
 ## Evaluate scenario value independently
@@ -168,11 +169,13 @@ about.
 ### All outliers
 
 Evaluate all metrics used for ecological rules, for all 3 lakes, for all 2
-scenarios ("irr" and "no irr"). Total metrics evaluated:
+scenarios ("cur_irr" and "no irr"). Total metrics evaluated:
 
   * 66 for each simulation
 
 <br>
+
+**Top 10 outlier simulations**
 
 ```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE}
 
@@ -183,7 +186,7 @@ outliers_all <- outliers %>%
                 filter(.data$outlier == "TRUE") %>%
                 arrange(desc(.data$count)) %>%
                 select(.data$sim, .data$count)
-kable(head(outliers_all, 10), caption = "Top 10 outlier simulations")
+datatable(outliers_all)
 
 ```
 
@@ -240,16 +243,7 @@ outliers_sub <- outliers %>%
                 select(.data$hydrology, .data$sim, .data$count) %>%
                 dcast(sim~hydrology, value.var = "count",
                       fill = 0) 
-kable(head(outliers_sub %>% arrange(desc(.data$duration)), 10), 
-           caption = "Top 10, arranged by duration")
-kable(head(outliers_sub %>% arrange(desc(.data$frequency)), 10), 
-           caption = "Top 10, arranged by frequency")
-kable(head(outliers_sub %>% arrange(desc(.data$magnitude)), 10), 
-      caption = "Top 10, arranged by magnitude")
-kable(head(outliers_sub %>% arrange(desc(.data$rate_of_change)), 10), 
-           caption = "Top 10, arranged by rate_of_change")
-kable(head(outliers_sub %>% arrange(desc(.data$timing)), 10), 
-           caption = "Top 10, arranged by timing")
+datatable(outliers_sub)
 
 ```
 
@@ -294,16 +288,7 @@ outliers_sub <- outliers %>%
                 select(.data$hydrology, .data$scenario, .data$sim, .data$count) %>%
                 dcast(sim+scenario~hydrology, value.var = "count",
                       fill = 0) 
-kable(head(outliers_sub %>% arrange(desc(.data$duration)), 20), 
-           caption = "Top 20, arranged by duration")
-kable(head(outliers_sub %>% arrange(desc(.data$frequency)), 20), 
-           caption = "Top 20, arranged by frequency")
-kable(head(outliers_sub %>% arrange(desc(.data$magnitude)), 20), 
-      caption = "Top 20, arranged by magnitude")
-kable(head(outliers_sub %>% arrange(desc(.data$rate_of_change)), 20), 
-           caption = "Top 20, arranged by rate_of_change")
-kable(head(outliers_sub %>% arrange(desc(.data$timing)), 20), 
-           caption = "Top 20, arranged by timing")
+datatable(outliers_sub)
 
 ```
 
@@ -316,7 +301,7 @@ fuzzier line for the top outlier simulations here.
 
 ### Outliers for differences 
 
-Evaluate outliers in metric differences (no_irr - irr). Total metrics evaluated:
+Evaluate outliers in metric differences (no_irr - cur_irr). Total metrics evaluated:
 
   * 33 for each simulation
  
@@ -327,7 +312,7 @@ df1 <- MODFLOW_metrics %>%
        select(.data$hydrology, .data$metric, .data$variable, .data$lake, 
               .data$sim, .data$value)
 df2 <- MODFLOW_metrics %>% 
-       filter(.data$scenario == "irr")  %>%
+       filter(.data$scenario == "cur_irr")  %>%
        select(.data$hydrology, .data$metric, .data$variable, .data$lake, 
               .data$sim, .data$value)
 combined <- full_join(df1, df2, 
@@ -362,6 +347,8 @@ outliers        <- combined %>%
                    mutate(outlier = ifelse((.data$diff > .data$upper | 
                                               .data$diff < .data$lower),
                                            TRUE, FALSE))
+outliers$sim     <- factor(outliers$sim)
+outliers$outlier <- factor(outliers$outlier)
 
 outliers_all <- outliers %>%
                 group_by(.data$outlier, .data$sim, 
@@ -371,7 +358,7 @@ outliers_all <- outliers %>%
                 filter(.data$outlier == TRUE) %>%
                 select(.data$sim, .data$count) %>%
                 arrange(desc(.data$count))
-kable(head(outliers_all, 10), caption = "Top 10 outliers - all differences")
+datatable(outliers_all)
 
 ```
 
@@ -422,17 +409,9 @@ outliers_sub <- outliers %>%
                 filter(.data$outlier == "TRUE") %>%
                 filter(!is.na(.data$hydrology)) %>%
                 select(.data$hydrology, .data$sim, .data$count) %>%
-                dcast(sim~hydrology, value.var = "count",
-                      fill = 0) 
-kable(head(outliers_sub %>% arrange(desc(.data$duration)), 10), 
-           caption = "Top 10, arranged by duration")
-kable(head(outliers_sub %>% arrange(desc(.data$frequency)), 10), 
-           caption = "Top 10, arranged by frequency")
-kable(head(outliers_sub %>% arrange(desc(.data$magnitude)), 10), 
-      caption = "Top 10, arranged by magnitude")
-kable(head(outliers_sub %>% arrange(desc(.data$timing)), 10), 
-           caption = "Top 10, arranged by timing")
+                dcast(sim~hydrology, value.var = "count") 
 
+datatable(outliers_sub)
 ```
 
 <br>

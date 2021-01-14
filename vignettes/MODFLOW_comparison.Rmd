@@ -20,7 +20,7 @@ library(patchwork)
 library(lubridate)
 
 MODFLOW         <- CSLSdata::MODFLOW %>%
-                   filter(.data$scenario %in% c("no_irr", "irr"),
+                   filter(.data$scenario %in% c("no_irr", "cur_irr"),
                           year(.data$date) >= 1986) %>%
                    select(.data$lake, .data$scenario, .data$sim,
                           .data$date, .data$level_m) 
@@ -33,7 +33,7 @@ MODFLOW_metrics <- CSLSscenarios::MODFLOW_metrics %>%
 MODFLOW_diff    <- dcast(MODFLOW_metrics,
                          lake+metric+variable+sim+series~scenario,
                          value.var = "value") %>%
-                   mutate(value = .data$irr - .data$no_irr) 
+                   mutate(value = .data$cur_irr - .data$no_irr) 
 
 
 compare_width  <- 6.5
@@ -56,7 +56,7 @@ plot_comparison <- function(df,
                                                               "Frequent\nLow",
                                                               "Infrequent\nLow")),
                             series = "month",
-                            colors = data.frame(breaks = c("no_irr", "irr"),
+                            colors = data.frame(breaks = c("no_irr", "cur_irr"),
                                                 labels = c("No Irrigation",
                                                            "Current Irrigation"),
                                                 values = c("darkblue",

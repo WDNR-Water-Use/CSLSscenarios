@@ -23,10 +23,11 @@ Imports:
     stringr,
     NISTunits
 Suggests:
-    rmarkdown,
+    DT,
     extrafont,
     ggplot2,
-    patchwork
+    patchwork,
+    rmarkdown
 VignetteBuilder: knitr
 RoxygenNote: 7.1.1
 Roxygen: list(markdown = TRUE)

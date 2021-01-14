@@ -13,7 +13,7 @@ lakes   <- c("Pleasant", "Long", "Plainfield")
 # DATA: Load MODFLOW data for climate runs
 # Allow for a burn-in period, nix first 5 years (start at 1986)
 MODFLOW <- CSLSdata::MODFLOW %>%
-           filter(.data$scenario %in% c("irr", "no_irr"),
+           filter(.data$scenario %in% c("cur_irr", "no_irr"),
                   year(.data$date) >= 1986,
                   year(.data$date) <= 2018) %>%
            select(scenario = .data$scenario,
@@ -34,7 +34,7 @@ MODFLOW$lake   <- factor(MODFLOW$lake, levels = lakes)
 # Initialize lists for saving ouptuts
 scenario_metrics <- list()
 i <- 1
-for (scenario in c("no_irr", "irr")) {
+for (scenario in c("no_irr", "cur_irr")) {
   message(sprintf("Starting scenario %s", scenario))
   for (sim in unique(MODFLOW$sim)) {
   # for (sim in c(1)) { # Limit to just base run for now (but ultimately change)
@@ -46,8 +46,8 @@ for (scenario in c("no_irr", "irr")) {
                    filter(.data$scenario == !!scenario,
                           .data$sim == !!sim)
 
-    # If irr scenario, use no_irr exceedance levels to calculate durations
-    if (scenario == "irr") {
+    # Always use no_irr exceedance levels to calculate durations
+    if (scenario != "no_irr") {
       dur_exceeds <- scenario_metrics_no_irr %>%
                      filter(.data$scenario == "no_irr",
                             .data$sim == !!sim,
@@ -56,7 +56,7 @@ for (scenario in c("no_irr", "irr")) {
                             .data$series) %>%
                      dcast(lake+series~variable, value.var = "value")
     } else {
-      dur_exceeds <- NULL
+      dur_exceeds = NULL
     }
 
     # Calculate hydrologic metrics
@@ -97,7 +97,9 @@ for (scenario in c("no_irr", "irr")) {
     scenario_metrics[[i]] <- this_metric
     i <- i + 1
   }
-  scenario_metrics_no_irr     <- bind_rows(scenario_metrics)
+  if (scenario == "no_irr") {
+    scenario_metrics_no_irr <- bind_rows(scenario_metrics)
+  }
 }
 MODFLOW_metrics      <- bind_rows(scenario_metrics)
 MODFLOW_metrics$lake <- factor(MODFLOW_metrics$lake, levels = lakes)

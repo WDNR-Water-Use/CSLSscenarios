@@ -11,7 +11,7 @@ MODFLOW_metrics  <- CSLSscenarios::MODFLOW_metrics %>%
 
 use_sims <- select_bounds(MODFLOW_metrics,
                           base_scenario = "no_irr",
-                          compare_scenario = "irr")
+                          compare_scenario = "cur_irr")
 
 # 2. Compare scenarios ---------------------------------------------------------
 # Get standard deviations of metrics, for those with rules = no allowable change
@@ -35,7 +35,7 @@ for (sim in use_sims$sim) {
                    select(.data$lake, .data$metric, .data$variable, .data$value)
   this_scenario <- MODFLOW_metrics %>%
                    filter(.data$sim == !!sim,
-                          .data$scenario == "irr",
+                          .data$scenario == "cur_irr",
                           .data$series == "month") %>%
                    select(.data$lake, .data$metric, .data$variable, .data$value)
 
