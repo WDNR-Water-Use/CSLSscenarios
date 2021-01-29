@@ -56,7 +56,7 @@ for (scenario in c("no_irr", "cur_irr")) {
                             .data$series) %>%
                      dcast(lake+series~variable, value.var = "value")
     } else {
-      dur_exceeds = NULL
+      dur_exceeds <- NULL
     }
 
     # Calculate hydrologic metrics
@@ -86,7 +86,8 @@ for (scenario in c("no_irr", "cur_irr")) {
                                                  "move_dock",
                                                  "turtle_bay",
                                                  "stratification",
-                                                 "paddleboat",
+                                                 "is_lake",
+                                                 "paddlesports",
                                                  "motorboat",
                                                  "season_compare"),
                                      dur_exceeds = dur_exceeds)

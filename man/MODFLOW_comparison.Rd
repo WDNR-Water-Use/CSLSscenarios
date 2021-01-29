@@ -21,6 +21,8 @@ or "higher" than the threshold}
 \item{value1}{value of hydrologic metric for base scenario}
 \item{threshold}{threshold value of hydrologic metric}
 \item{value2}{value of hydrologic metric for comparison scenario}
+\item{compare1}{only used for solute_budget - concentration (low or high)
+used for comparison for value2 median concentration}
 \item{threshold_diff}{threshold - value1}
 \item{diff}{value2 - value1}
 \item{bathy_significant_if}{whether bathymetry metric is impacted from

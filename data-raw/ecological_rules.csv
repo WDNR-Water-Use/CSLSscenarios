@@ -1,4 +1,9 @@
 hydrology,category,indicator,metric,variable,bathy_metric,percent,difference,significant_if,Pleasant,Long,Plainfield
+magnitude,chemistry,stratification,exceedance_level,10,,,0,lower,TRUE,FALSE,FALSE
+magnitude,chemistry,stratification,exceedance_level,25,,,0,lower,TRUE,FALSE,FALSE
+magnitude,chemistry,stratification,exceedance_level,50,,,0,lower,TRUE,FALSE,FALSE
+magnitude,chemistry,stratification,exceedance_level,75,,,0,lower,TRUE,FALSE,FALSE
+magnitude,chemistry,stratification,exceedance_level,90,,,0,lower,TRUE,FALSE,FALSE
 magnitude,fish,volume_habitat,exceedance_level,10,vol_m3,10,,lower,TRUE,TRUE,FALSE
 magnitude,fish,area_habitat,exceedance_level,10,area_m2,10,,lower,TRUE,TRUE,FALSE
 magnitude,fish,littoral_habitat,exceedance_level,10,substrate_area_m2,20,,lower,TRUE,FALSE,FALSE
@@ -98,7 +103,13 @@ duration,plants,low_levels,num_2yr,b50,,,0,higher,TRUE,TRUE,TRUE
 frequency,chemistry,stratification,stratification,percent_strat,,,0,lower,TRUE,FALSE,FALSE
 frequency,fish,turtle_bay,turtle_bay,percent_connect_warm,,,0,lower,TRUE,FALSE,FALSE
 frequency,human_use,motorboat,motorboat,percent_ok,,,0,lower,TRUE,FALSE,FALSE
-frequency,human_use,paddleboat,paddleboat,percent_ok,,,0,lower,FALSE,TRUE,FALSE
-frequency,human_use,bad_dock,move_dock,percent_bad_june,,,0,higher,TRUE,TRUE,FALSE
-rate_of_change,human_use,move_dock,move_dock,percent_moves,,,0,higher,TRUE,TRUE,FALSE
+frequency,human_use,paddleboat,paddlesports,percent_paddle,,,0,lower,FALSE,TRUE,FALSE
+frequency,human_use,is_lake,is_lake,percent_epa_lake,,,0,lower,FALSE,TRUE,TRUE
+frequency,human_use,is_open_lake,is_lake,percent_open_lake,,,0,lower,FALSE,TRUE,FALSE
+frequency,human_use,install_dock,dock,percent_install,,,0,lower,TRUE,TRUE,FALSE
+frequency,human_use,good_dock,dock,percent_good_year,,,0,lower,TRUE,TRUE,FALSE
+rate_of_change,human_use,no_move_dock,dock,percent_no_move,,,0,lower,TRUE,TRUE,FALSE
 timing,fish,good_spawning,good_spawning,good_spawning,,,0,lower,TRUE,FALSE,FALSE
+fluxes,chemistry,low_solute_median,solute_budget,median,,,0,lower,TRUE,TRUE,TRUE
+fluxes,chemistry,high_solute_median,solute_budget,median,,,0,higher,TRUE,TRUE,TRUE
+fluxes,chemistry,solute_max,solute_budget,max,,100,,higher,TRUE,TRUE,TRUE

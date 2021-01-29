@@ -33,15 +33,20 @@ calculate_spawning <- function(df,
                    mutate(high_spring = ifelse(.data$level > .data$mean_level,
                                                 TRUE, FALSE)) %>%
                    select(.data$lake, .data$year, .data$high_spring)
-  steady_summer <- df %>%
-                   group_by(.data$lake, .data$year) %>%
-                   summarise(spring = mean(.data$level[.data$month %in% c(3, 4, 5)]),
-                             summer = mean(.data$level[.data$month %in% c(6, 7)]),
-                             .groups = "drop") %>%
-                   mutate(steady_summer = ifelse((.data$summer-.data$spring) >=
-                                                   max_fall,
-                                                 TRUE, FALSE)) %>%
-                   select(.data$lake, .data$year, .data$steady_summer)
+#  steady_summer <- df %>%
+#                   group_by(.data$lake, .data$year) %>%
+#                   summarise(spring = mean(.data$level[.data$month %in% c(3, 4, 5)]),
+#                             summer = mean(.data$level[.data$month %in% c(6, 7)]),
+#                             .groups = "drop") %>%
+#                   mutate(steady_summer = ifelse((.data$summer-.data$spring) >=
+#                                                   max_fall,
+#                                                 TRUE, FALSE)) %>%
+#                   select(.data$lake, .data$year, .data$steady_summer)
+  
+  steady_summer  <- df %>%
+                    filter(.data$month %in% 3:7) %>%
+                    group_by(.data$lake, .data$year) %>%
+                    summarise(steady_summer = ifelse(min(diff(.data$level)) >= max_fall, TRUE, FALSE))
   good_spawning <- left_join(high_spring, steady_summer, by = c("lake", "year")) %>%
                    mutate(good_spawning = ifelse(.data$high_spring & .data$steady_summer,
                                                  TRUE, FALSE))

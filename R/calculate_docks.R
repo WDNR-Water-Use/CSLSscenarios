@@ -63,30 +63,33 @@ calculate_docks <- function(df,
 
     # Docks get shallow
     bad_drops   <- left_join(this_levels,
-                            june_docks,
-                            by = "year") %>%
+                             june_docks,
+                             by = "year") %>%
                    mutate(bad_drop = ifelse(.data$elev_m <= .data$min_elev,
                                             TRUE, FALSE)) %>%
                    count(.data$year, .data$bad_drop) %>%
                    filter(.data$bad_drop == TRUE)
 
     # Summarize values
-    num_years        <- length(unique(this_levels$year))
-    num_moves        <- nrow(bad_drops)
-    percent_moves    <- 100*num_moves/num_years
-    num_bad_june     <- num_years - nrow(june_docks)
-    percent_bad_june <- 100*num_bad_june/num_years
+    num_years         <- length(unique(this_levels$year))
+    num_install       <- nrow(june_docks)
+    percent_install   <- 100*num_install/num_years
+    num_no_move       <- num_install - nrow(bad_drops)
+    percent_no_move   <- 100*num_no_move/num_install
+    percent_good_year <- 100*num_no_move/num_years
 
-    this_dock <- data.frame(lake = rep(lake, 4),
-                            metric = rep("move_dock", 4),
-                            variable = c("num_moves",
-                                         "percent_moves",
-                                         "num_bad_june",
-                                         "percent_bad_june"),
-                            value = c(num_moves,
-                                      percent_moves,
-                                      num_bad_june,
-                                      percent_bad_june))
+    this_dock <- data.frame(lake = rep(lake, 5),
+                            metric = rep("dock", 5),
+                            variable = c("num_no_move",
+                                         "percent_no_move",
+                                         "num_install",
+                                         "percent_install",
+                                         "percent_good_year"),
+                            value = c(num_no_move,
+                                      percent_no_move,
+                                      num_install,
+                                      percent_install,
+                                      percent_good_year))
     dock <- rbind(dock, this_dock)
   }
 

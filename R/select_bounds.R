@@ -22,7 +22,7 @@
 
 select_bounds <- function(df,
                           base_scenario = "no_irr",
-                          compare_scenario = "irr") {
+                          compare_scenario = "cur_irr") {
 
   pairs_df       <- left_join(filter(df, .data$scenario == base_scenario),
                               filter(df, .data$scenario == compare_scenario),

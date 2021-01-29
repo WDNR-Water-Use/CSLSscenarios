@@ -184,9 +184,9 @@ plot_diff <- function(df,
 # Function 1/3: round values to desired precision and save as string -----------
 round_to_string <- function(val, metric) {
   # Reference
-  digits2 <- c("exceedance_level", "exceedance_range")
-  digits1 <- c("stratification", "turtle_bay", "paddleboat", "motorboat", 
-               "move_dock", "good_spawning")
+  digits2 <- c("exceedance_level", "exceedance_range", "solute_budget")
+  digits1 <- c("stratification", "turtle_bay", "is_lake", "motorboat", 
+               "dock", "good_spawning")
   digits0 <- c("num_2yr")
   
   val <- as.numeric(val)
@@ -222,11 +222,12 @@ format_table <- function(df,
                          value_var = "threshold",
                          hydrology_order = c("magnitude", "frequency", 
                                              "duration", "rate_of_change", 
-                                             "timing"),
+                                             "timing", "fluxes"),
                          metric_order = c("exceedance_level", 
                                           "exceedance_range", "stratification", 
                                           "turtle_bay", "motorboat", "num_2yr", 
-                                          "move_dock", "good_spawning")) {
+                                          "dock", "is_lake", "good_spawning", 
+                                          "solute_budget")) {
   
   # Retain only "base" values + count of impacts
   vals_df   <- df %>% 
@@ -368,14 +369,16 @@ plot_diff(df, metric, variables, plot_diff = TRUE)
 
 ```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE, fig.width=6.5, fig.height=3.75}
 metric   <- data.frame(metric = c("turtle_bay", "stratification", 
-                                  "motorboat", "move_dock"),
+                                  "motorboat", "dock"),
                        ylabel = "Frequency (% of Time)")
 variables <- data.frame(breaks = c("percent_connect_warm", "percent_strat", 
-                                   "percent_ok", "percent_bad_june"),
+                                   "percent_ok", "percent_install", 
+                                   "percent_good_year"),
                         labels = c("Turtle Bay\nConnected",
                                    "Stratified\nLake",
                                    "Legal Motorboat\nArea",
-                                   "Shallow June\nDock"))
+                                   "Good Dock\nInstall",
+                                   "Good Dock\nYear"))
 
 plot_diff(df, metric, variables, plot_diff = FALSE)
 plot_diff(df, metric, variables, plot_diff = TRUE)
@@ -403,10 +406,10 @@ plot_diff(df, metric, variables, plot_diff = TRUE)
 ### Rate of Change
 
 ```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE, fig.width=3.5, fig.height=3.75}
-metric   <- data.frame(metric = c("move_dock"),
+metric   <- data.frame(metric = c("dock"),
                        ylabel = "Percent of Years")
-variables <- data.frame(breaks = c("percent_moves"),
-                        labels = c("Move Dock"))
+variables <- data.frame(breaks = c("percent_no_move"),
+                        labels = c("Dock Not Moved"))
 
 plot_diff(df, metric, variables, plot_diff = FALSE)
 plot_diff(df, metric, variables, plot_diff = TRUE)
@@ -481,11 +484,19 @@ plot_diff(df, metric, variables, plot_diff = TRUE)
 
 ### Frequency
 
-```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE, fig.width=3, fig.height=3.75}
-metric   <- data.frame(metric = c("move_dock"),
+```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE, fig.width=6.5, fig.height=3.75}
+metric   <- data.frame(metric = c("dock", "is_lake"),
                        ylabel = "Frequency (% of Time)")
-variables <- data.frame(breaks = c("percent_bad_june"),
-                        labels = c("Shallow June\nDock"))
+variables <- data.frame(breaks = c("percent_install",
+                                   "percent_good_year",
+                                   "percent_lake",
+                                   "percent_lake_warm",
+                                   "percent_open_lake"),
+                        labels = c("Good Dock\nInstall",
+                                   "Good Dock\nYear",
+                                   "Is Lake",
+                                   "Paddle Sports\nPossible",
+                                   "Is Open\nLake"))
 
 plot_diff(df, metric, variables, plot_diff = FALSE)
 plot_diff(df, metric, variables, plot_diff = TRUE)
@@ -511,10 +522,10 @@ plot_diff(df, metric, variables, plot_diff = TRUE)
 ### Rate of Change
 
 ```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE, fig.width=3.5, fig.height=3.75}
-metric   <- data.frame(metric = c("move_dock"),
+metric   <- data.frame(metric = c("dock"),
                        ylabel = "Percent of Years")
-variables <- data.frame(breaks = c("percent_moves"),
-                        labels = c("Move Dock"))
+variables <- data.frame(breaks = c("percent_no_move"),
+                        labels = c("Dock Not Moved"))
 
 plot_diff(df, metric, variables, plot_diff = FALSE)
 plot_diff(df, metric, variables, plot_diff = TRUE)

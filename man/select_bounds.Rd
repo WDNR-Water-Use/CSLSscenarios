@@ -4,7 +4,7 @@
 \alias{select_bounds}
 \title{Select upper/lower bounds for comparisons}
 \usage{
-select_bounds(df, base_scenario = "no_irr", compare_scenario = "irr")
+select_bounds(df, base_scenario = "no_irr", compare_scenario = "cur_irr")
 }
 \arguments{
 \item{df}{a data frame with MODFLOW metrics}

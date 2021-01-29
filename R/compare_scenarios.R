@@ -74,7 +74,20 @@ compare_scenarios <- function(df1,
                          .data$variable == this_rule$variable)
 
     # Determine threshold for impact, assess if value2 is impacted -------------
-    if (this_rule$bathy_metric != "") {
+    if (this_rule$indicator %in% c("low_solute_median","high_solute_median")) {
+      this_hydro <- combined %>%
+                    filter(.data$metric == this_rule$metric)
+      this_hydro <- evaluate_solute_median(this_hydro,
+                                           this_rule,
+                                           metric_uncertainty)
+
+    } else if (this_rule$indicator == "stratification" &
+               this_rule$metric == "exceedance_level") {
+      this_hydro <- check_stratification(this_rule,
+                                         this_hydro,
+                                         metric_uncertainty)
+
+    } else if (this_rule$bathy_metric != "") {
       # Calculate rule on child metric related to bathymetry
       this_hydro <- extrapolate_bathymetry(this_hydro, this_rule,
                                            bathymetry, this_rule$bathy_metric,
@@ -83,14 +96,15 @@ compare_scenarios <- function(df1,
       # Calculate rule on hydrologic metric, straight up
       impact     <- evaluate_impact_rules(this_rule, metric_uncertainty)
       this_hydro <- this_hydro %>%
-                    mutate(threshold = impact$factor*.data$value1 + impact$diff,
+                    left_join(impact, by = "lake") %>%
+                    mutate(threshold = .data$factor*.data$value1 + .data$diff,
                            diff = .data$value2 - .data$value1,
                            threshold_diff = .data$threshold - .data$value1,
                            lower = ifelse(.data$value2 < .data$threshold,
                                           TRUE, FALSE),
                            higher = ifelse(.data$value2 > .data$threshold,
                                            TRUE, FALSE))
-      this_hydro$impacted <- this_hydro[,impact$significant_if]
+      this_hydro$impacted <- this_hydro[,impact$significant_if[1]]
     }
 
     # Add back in additional information about this ecological indicator -------
@@ -107,16 +121,20 @@ compare_scenarios <- function(df1,
   # Track bathymetry significant_if directions
   keep_indicators <- rules %>%
                      select(.data$metric, .data$variable, .data$indicator,
-                            .data$Pleasant, .data$Long, .data$Plainfield) %>%
-                     melt(id.vars = c("metric", "variable", "indicator"))
+                            .data$significant_if, .data$Pleasant, .data$Long,
+                            .data$Plainfield) %>%
+                     melt(id.vars = c("metric", "variable", "indicator",
+                                      "significant_if"))
   colnames(keep_indicators) <- c("metric", "variable", "indicator",
-                                 "lake", "keep")
+                                 "significant_if", "lake", "keep")
   comparison <- bind_rows(comparison) %>%
                 left_join(keep_indicators,
-                          by = c("lake", "metric", "variable", "indicator")) %>%
+                          by = c("lake", "metric", "variable", "indicator",
+                                 "significant_if")) %>%
                 filter(.data$keep) %>%
                 mutate(bathy_significant_if = .data$significant_if,
-                       significant_if = ifelse(.data$metric == "exceedance_level",
+                       significant_if = ifelse(.data$metric == "exceedance_level" &
+                                                 !is.na(.data$bathy1),
                                                "lower",
                                                .data$significant_if)) %>%
                 select(.data$lake,
@@ -128,6 +146,7 @@ compare_scenarios <- function(df1,
                        .data$impacted,
                        .data$significant_if,
                        .data$value1,
+                       .data$compare1,
                        .data$threshold,
                        .data$value2,
                        .data$threshold_diff,
@@ -142,7 +161,8 @@ compare_scenarios <- function(df1,
   # Merge plant increase/decrease thresholds -----------------------------------
   plants_df <- comparison %>%
                filter(.data$metric == "exceedance_level",
-                      .data$category == "plants")
+                      .data$category == "plants",
+                      .data$indicator != "threatened_plant")
   plants_new <- plants_df %>%
                 mutate(plant_type = str_remove(str_remove(.data$indicator,
                                                           "_increase"),

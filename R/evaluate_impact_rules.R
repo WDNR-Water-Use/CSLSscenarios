@@ -39,20 +39,34 @@ evaluate_impact_rules <- function(this_rule, metric_uncertainty) {
     impact$diff <- 0
   }
 
-  # No change allowed
+
+  # No change allowed, allow standard deviation
+  this_metric  <- metric_uncertainty %>%
+                  filter(.data$metric == this_rule$metric,
+                         .data$variable == this_rule$variable)
+  impact$lake  <- this_metric$lake
   if (impact$diff == 0 & impact$factor == 1) {
-    this_metric <- metric_uncertainty %>%
-                   filter(.data$metric == this_rule$metric,
-                          .data$variable == this_rule$variable)
     if (this_rule$significant_if == "lower") {
       impact$diff <- -this_metric$difference
     } else if (this_rule$significant_if == "higher") {
       impact$diff <- this_metric$difference
+    }
+  }
+  impact$significant_if <- this_rule$significant_if
+  impact <- as.data.frame(impact)
 
+  # If no change allowed AND standard deviation is zero, allow 1% change
+  for (i in 1:nrow(impact)) {
+    if (impact$diff[i] == 0 & impact$factor[i] == 1) {
+      if (impact$significant_if[i] == "lower") {
+        impact$factor[i] <- 0.99
+      } else if (impact$significant_if[i] == "higher") {
+        impact$diff[i]   <- 1.01
+      }
     }
   }
 
-  impact$significant_if <- this_rule$significant_if
+
 
   return(impact)
 }

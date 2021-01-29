@@ -6,8 +6,11 @@ library(NISTunits)
 library(CSLSscenarios)
 
 # 1. Decide on upper/lower bound scenarios -------------------------------------
-MODFLOW_metrics  <- CSLSscenarios::MODFLOW_metrics %>%
-                    filter(.data$series == "month")
+MODFLOW_Mg_metrics <- CSLSfluxes::MODFLOW_Mg_metrics %>%
+                      mutate(series = "month")
+MODFLOW_metrics    <- CSLSscenarios::MODFLOW_metrics %>%
+                      filter(.data$series == "month") %>%
+                      bind_rows(MODFLOW_Mg_metrics)
 
 use_sims <- select_bounds(MODFLOW_metrics,
                           base_scenario = "no_irr",
@@ -19,7 +22,6 @@ rules              <- CSLSscenarios::ecological_rules
 rule_metrics       <- unique(rules[, c("metric", "variable")])
 metric_uncertainty <- MODFLOW_metrics %>%
                       filter(.data$scenario == "no_irr") %>%
-                      inner_join(rule_metrics, (by = c("metric", "variable"))) %>%
                       group_by(.data$lake, .data$metric, .data$variable) %>%
                       summarise(difference = sd(.data$value, na.rm = TRUE),
                                 .groups = "drop")

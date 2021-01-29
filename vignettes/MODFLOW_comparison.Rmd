@@ -411,16 +411,17 @@ plot_diff(MODFLOW_diff, metric = metric, variables = variables)
 
 <br>
 
-### Long Lake - Paddleboat basins connected & > 3ft
+### Long Lake - Is Lake & Paddle Sports
 
 **Comparison**
 
 ```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE, fig.width=3, fig.height=2.5}
-metric    <- data.frame(metric = "paddleboat",
+metric    <- data.frame(metric = "is_lake",
                         ylabel = "Percent of Time",
                         mTOft = FALSE)
-variables <- data.frame(breaks = c("percent_ok"),
-                        labels = c("Paddleboat Ok"))
+variables <- data.frame(breaks = c("percent_lake", "percent_lake_warm", 
+                                   "percent_open_lake"),
+                        labels = c("Is Lake", "Paddle Sport\nPossible", "Is Open\nLake"))
 
 plot_comparison(MODFLOW_metrics, metric = metric, variables = variables)
 ```
@@ -440,13 +441,15 @@ plot_diff(MODFLOW_diff, metric = metric, variables = variables)
 **Comparison**
 
 ```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE, fig.width=4.5, fig.height=4}
-metric    <- data.frame(metric = "move_dock",
+metric    <- data.frame(metric = "dock",
                         ylabel = "Percent of Years",
                         mTOft = FALSE)
-variables <- data.frame(breaks = c("percent_bad_june",
-                                   "percent_moves"),
-                        labels = c("Bad June Dock",
-                                   "Move Dock"))
+variables <- data.frame(breaks = c("percent_install",
+                                   "percent_no_move",
+                                   "percent_good_year"),
+                        labels = c("Install Dock",
+                                   "No Move Dock",
+                                   "Good Dock"))
 
 plot_comparison(MODFLOW_metrics, metric = metric, variables = variables)
 ```

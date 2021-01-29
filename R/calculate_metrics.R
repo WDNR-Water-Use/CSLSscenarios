@@ -66,7 +66,8 @@ calculate_metrics <- function(df_month,
                                           "move_dock",
                                           "turtle_bay",
                                           "stratification",
-                                          "paddleboat",
+                                          "is_lake",
+                                          "paddlesports",
                                           "motorboat",
                                           "season_compare",
                                           "fast_rise_decade",
@@ -311,17 +312,23 @@ calculate_metrics <- function(df_month,
 
     # 2e. Frequency of mixed conditions (at Pleasant Lake) ---------------------
     if ("stratification" %in% metrics) {
-      vals  <- calculate_stratification(df)
+      vals    <- calculate_stratification(df)
       summary[[i]] <- vals; i <- i + 1
     }
 
-    # 2f. Frequency of good paddleboat conditions (at Long Lake) ---------------
-    if ("paddleboat" %in% metrics & dt %in% c(1, 3)) {
-      vals  <- calculate_paddleboat(df)
+    # 2f. Frequency of lake/good paddleboat conditions (at Long Lake) ---------------
+    if ("is_lake" %in% metrics & dt %in% c(1, 3)) {
+      vals  <- calculate_lake(df)
       summary[[i]] <- vals; i <- i + 1
     }
 
-    # 2g. Frequency of legal motorboating conditions (at Pleasant Lake) --------
+    # 2g. Frequency of lake/good paddleboat conditions (at Long Lake) ---------------
+    if ("paddlesports" %in% metrics & dt %in% c(1, 3)) {
+      vals  <- calculate_paddlesports(df)
+      summary[[i]] <- vals; i <- i + 1
+    }
+
+    # 2h. Frequency of legal motorboating conditions (at Pleasant Lake) --------
     if ("motorboat" %in% metrics & dt %in% c(1, 3)) {
       vals  <- calculate_motorboat(df)
       summary[[i]] <- vals; i <- i + 1
