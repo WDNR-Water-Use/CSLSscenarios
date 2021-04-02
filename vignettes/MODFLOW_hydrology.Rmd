@@ -44,6 +44,7 @@ MODFLOW <- CSLSdata::MODFLOW %>%
 
 # Metrics ----------------------------------------------------------------------
 MODFLOW_metrics <- CSLSscenarios::MODFLOW_metrics %>%
+                   filter(.data$scenario %in% scenarios$scenario) %>%
                    group_by(.data$lake, .data$metric, .data$variable,
                             .data$scenario, .data$series) %>%
                    summarise(base = .data$value[which(.data$sim == 1)],
@@ -58,9 +59,15 @@ MODFLOW_metrics <- CSLSscenarios::MODFLOW_metrics %>%
                           base = .data$base, 
                           sd = .data$sd)
 
+
 MODFLOW_metrics$scenario <- factor(MODFLOW_metrics$scenario, 
                                    levels = scenarios$scenario_name)
 
+exceeds <- MODFLOW_metrics %>%
+           filter(.data$metric == "exceedance_level",
+                  .data$scenario == "No Irrigation",
+                  .data$series == "month") %>%
+           mutate(base = NISTmeterTOft(.data$base))
 ```
 
 ```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE}
@@ -229,7 +236,7 @@ format_table <- function(df, metrics, variables, series = "month",
 ```
 
 ```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE}
-plot_levels <- function(df, scenarios, only_base = FALSE, text_size = 10) {
+plot_levels <- function(df, exceeds, scenarios, only_base = FALSE, text_size = 10) {
   if (only_base) {
     plot_obj <- ggplot(df)
   } else {
@@ -240,7 +247,29 @@ plot_levels <- function(df, scenarios, only_base = FALSE, text_size = 10) {
                               color = .data$scenario),
                           alpha = 0.03)
   }
+  
+  solid_line  <- exceeds %>% filter(.data$variable == "50")
+  dashed_line  <- exceeds %>% filter(.data$variable %in% c("25", "75"))
+  rectangle   <- exceeds %>% 
+                 filter(.data$variable %in% c("10", "90")) %>% 
+                 select(.data$lake, .data$variable, .data$base) %>%
+                 dcast(lake~variable, value.var = "base")
+  
   plot_obj <- plot_obj +
+              geom_rect(data = rectangle,
+                        mapping = aes(xmin = -Inf,
+                                      xmax = Inf,
+                                      ymin = .data$`90`,
+                                      ymax = .data$`10`),
+                        fill = "steelblue4",
+                        color = NA,
+                        alpha = 0.1) + 
+              geom_hline(data = solid_line,
+                         aes(yintercept = .data$base),
+                         linetype = "solid") +
+              geom_hline(data = dashed_line,
+                         aes(yintercept = .data$base),
+                         linetype = "dashed") +
               geom_line(data = filter(df, .data$sim == 1),
                         aes(x = .data$time,
                             y = .data$level,
@@ -306,15 +335,22 @@ plot_exceedances <- function(df, scenarios, text_size = 10,
 plot_durations <- function(df, scenarios, text_size = 10, base_sim = 1,
                            probs = c(10, 25, 50, 75, 90),
                            max_months = 12*20,
-                           variables) {
+                           variables,
+                           only_no_irr = TRUE) {
   
-  exceeds_df <- df %>%
-                filter(.data$scenario == "No Irrigation",
-                        .data$sim == base_sim)
-  exceeds    <- calculate_exceedances(exceeds_df, probs = probs) %>%
-                dcast(lake~variable, value.var = "value")
   durations <- NULL
   for (scenario in unique(df$scenario)) {
+    if (only_no_irr) {
+      exceeds_df <- df %>%
+                  filter(.data$scenario == "No Irrigation",
+                         .data$sim == base_sim)
+    } else {
+      exceeds_df <- df %>%
+                    filter(.data$scenario == !!scenario,
+                           .data$sim == base_sim)
+    }
+    exceeds    <- calculate_exceedances(exceeds_df, probs = probs) %>%
+                  dcast(lake~variable, value.var = "value")
     this_scenario <- df %>%
                      filter(.data$scenario == !!scenario,
                             .data$sim == base_sim)
@@ -436,7 +472,7 @@ erroneous comparisons to the past.
 <br>
 
 ```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE, fig.width=6.5, fig.height=6}
-plot_levels(MODFLOW, scenarios, only_base = TRUE)
+plot_levels(MODFLOW, exceeds, scenarios, only_base = TRUE)
 ```
 
 <br>
@@ -453,13 +489,11 @@ plot_exceedances(MODFLOW, scenarios)
 <br>
 
 ### Durations Above/Below Exceedance Levels
-Histograms for each scenario are overlayed on top of one another. Lake level
-dynamics are MUCH less flashy than in our previous (historical) time series.
-Levels do not really fluctuate about the median. Instead, they go down fast,
-stay down, then come back up at the very end. Thus, there are very few
-occurances of exceedance, and they tend to last a long time. It makes these
-histograms kind of silly since there are so few occurrences - there may be a
-better way to visualize this. To make them somewhat more readable, I binned by
+Histograms for each scenario are overlayed on top of one another. Levels do not
+really fluctuate about the median. Instead, they go down fast, stay down, then
+come back up at the very end. Thus, there are very few occurances of exceedance,
+and they tend to last a long time. It makes these histograms kind of silly since
+there are so few occurrences. To make them somewhat more readable, I binned by
 year. Durations longer than 20 years include:
 
   1. Long Lake, Current Irrigation, Below Median: Nearly 29 years (345 months)
@@ -470,6 +504,20 @@ year. Durations longer than 20 years include:
 
 ```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE, fig.width=6.5, fig.height=7}
 plot_durations(MODFLOW, scenarios, variables = dur_var)
+```
+
+<br>
+
+This is another way of thinking about the durations, where don't use the
+no-irrigated-agriculture exceedance levels for both scenarios, but rather use
+whatever the exceedance level is in the given scenario. With this, you can
+better see that durations don't really change in and of themselves, they are
+only different because the entire time series is lower.
+
+<br>
+
+```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE, fig.width=6.5, fig.height=7}
+plot_durations(MODFLOW, scenarios, variables = dur_var, only_no_irr = FALSE)
 ```
 
 <br> 
@@ -518,6 +566,14 @@ datatable(format_table(MODFLOW_metrics, plant_metrics, plant_var, series = "mont
 <br>
 
 ### Frequency and Duration
+
+Note: these metrics are based on the "no-irrigated-agriculture" exceedance
+levels. As noted above, nearly all of the differences seen here are due to the
+lower magnitude, not necessarily a change in the durations or frequency behavior
+itself.
+
+<br>
+
 ```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE}
 datatable(format_table(MODFLOW_metrics, dur_metrics, dur_var, series = "month", 
              m_metrics, m2_metrics, m3_metrics, d1_metrics, d0_metrics))

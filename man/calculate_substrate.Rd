@@ -14,7 +14,8 @@ columns where one of the metrics is "exceedance_level".}
 substrate, a data frame with "lake", "metric", "variable", and
 "value" where the metric is "centrarchid_substrate", the variables
 are all the exceedance level probabilities inputted in df, and the
-value is the associated substrate area in m^2.
+value is the mean substrate hardness at generalized centrarchid
+spawning depth.
 }
 \description{
 Given a data frame with the exceedance level metrics for a single set of

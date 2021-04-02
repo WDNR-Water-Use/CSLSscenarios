@@ -203,7 +203,7 @@ calculate_metrics <- function(df_month,
 
       # 1b2. Substrate area ----------------------------------------------------
       if ("centrarchid_substrate" %in% metrics ) {
-        vals2 <- calculate_substrate(vals)
+        vals2 <- calculate_substrate_hardness(vals)
         summary[[i]] <- vals2; i <- i + 1
       }
 

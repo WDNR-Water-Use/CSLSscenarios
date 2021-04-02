@@ -77,6 +77,11 @@ extrapolate_bathymetry <- function(this_hydro,
       # Threshold for child bathy parameter
       this_lake$bathy_threshold <- impact$factor*this_lake$bathy1+impact$diff
 
+      # Adjust for substrate hardness only
+      if (bathy_metric == "meanHrdAtNest") {
+        this_lake$bathy_threshold <- 0.4
+      }
+
       # Estimate threshold elevations for this lake
       this_lake$threshold <- NA
       for (i in 1:nrow(this_lake)) {

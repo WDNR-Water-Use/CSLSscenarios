@@ -24,6 +24,7 @@ MODFLOW_comparison <- CSLSscenarios::MODFLOW_comparison
 ```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE}
 # Most limiting by ecological category -----------------------------------------
 limiting      <- MODFLOW_comparison %>%
+                 filter(.data$scenario == "cur_irr") %>%
                  group_by(.data$sim_type,
                           .data$lake,
                           .data$hydrology,
@@ -62,6 +63,7 @@ limiting      <- MODFLOW_comparison %>%
 
 # Most limiting by hydrologic metric -------------------------------------------
 most_limiting <- MODFLOW_comparison %>%
+                 filter(.data$scenario == "cur_irr") %>%
                  group_by(.data$sim_type,
                           .data$lake,
                           .data$hydrology,
@@ -186,7 +188,7 @@ round_to_string <- function(val, metric) {
   # Reference
   digits2 <- c("exceedance_level", "exceedance_range", "solute_budget")
   digits1 <- c("stratification", "turtle_bay", "is_lake", "motorboat", 
-               "dock", "good_spawning")
+               "dock", "good_spawning", "paddlesports")
   digits0 <- c("num_2yr")
   
   val <- as.numeric(val)
@@ -225,7 +227,8 @@ format_table <- function(df,
                                              "timing", "fluxes"),
                          metric_order = c("exceedance_level", 
                                           "exceedance_range", "stratification", 
-                                          "turtle_bay", "motorboat", "num_2yr", 
+                                          "turtle_bay", "motorboat", "paddlesports",
+                                          "num_2yr", 
                                           "dock", "is_lake", "good_spawning", 
                                           "solute_budget")) {
   
@@ -485,17 +488,17 @@ plot_diff(df, metric, variables, plot_diff = TRUE)
 ### Frequency
 
 ```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE, fig.width=6.5, fig.height=3.75}
-metric   <- data.frame(metric = c("dock", "is_lake"),
+metric   <- data.frame(metric = c("dock", "paddlesports", "is_lake"),
                        ylabel = "Frequency (% of Time)")
 variables <- data.frame(breaks = c("percent_install",
                                    "percent_good_year",
+                                   "percent_paddle",
                                    "percent_lake",
-                                   "percent_lake_warm",
                                    "percent_open_lake"),
                         labels = c("Good Dock\nInstall",
                                    "Good Dock\nYear",
-                                   "Is Lake",
                                    "Paddle Sports\nPossible",
+                                   "Is Lake",
                                    "Is Open\nLake"))
 
 plot_diff(df, metric, variables, plot_diff = FALSE)

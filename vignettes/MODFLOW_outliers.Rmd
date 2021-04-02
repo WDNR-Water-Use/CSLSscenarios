@@ -30,7 +30,8 @@ rules            <- rules %>%
                     select(.data$lake, .data$hydrology, .data$metric, .data$variable)
 useful_metrics   <- unique(rules[,c("lake", "hydrology", "metric", "variable")])
 MODFLOW_metrics  <- CSLSscenarios::MODFLOW_metrics %>%
-                    filter(.data$series == "month") %>%
+                    filter(.data$series == "month",
+                           .data$scenario %in% c("no_irr", "cur_irr")) %>%
                     inner_join(useful_metrics,
                                by = c("lake", "metric", "variable"))
 
@@ -68,6 +69,15 @@ outliers$outlier <- factor(outliers$outlier)
 ```
 
 ## Overview
+
+This is an exploration of the Monte Carlo SWB simualations, focused on the
+no-irrigated-agriculture and the difference between no-irrigated-agriculture and
+current-irrigated-agriculture. We tried to use this to understand if any
+simulations were outliers, and if so, what caused the differences. Ultimately,
+we did not "throw out" any simulations, though we focused primarily on the
+"base" parameterization of SWB, as well as the "large drawdown", and "small
+drawdown" parameterizations.
+
 
 I limited this evaluation to only those hydrologic metrics which we use for at
 least one of our ecological rules. This is <50% of all metrics we calculate, but

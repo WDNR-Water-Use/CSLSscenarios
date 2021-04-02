@@ -1,0 +1,471 @@
+---
+title: "Area Contributing to Impact"
+output: 
+  rmarkdown::html_vignette:
+    toc: true
+vignette: >
+  %\VignetteIndexEntry{MODFLOW_contributing_area}
+  %\VignetteEngine{knitr::rmarkdown}
+  \usepackage[utf8]{inputenc}
+---
+
+```{r setup, eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE}
+library(CSLSscenarios)
+library(NISTunits)
+library(dplyr)
+library(reshape2)
+library(ggplot2)
+library(extrafont)
+library(knitr) # for kable
+library(patchwork)
+
+MODFLOW_comparison <- CSLSscenarios::MODFLOW_comparison  %>%
+                      filter(.data$sim_type == "base",
+                             !.data$metric %in% c("turtle_bay", "num_2yr"),
+                             (.data$hydrology != "frequency" | 
+                                .data$metric != "stratification"),
+                             .data$sim != 0) %>%
+                      mutate(sim = ifelse(.data$scenario == "cur_irr",
+                                          0, .data$sim),
+                             scenario = ifelse(.data$scenario == "cur_irr",
+                                               "wells_off", .data$scenario),
+                             threshold_diff = ifelse(.data$variable == "median",
+                                                     .data$threshold - .data$value1,
+                                                     .data$threshold_diff),
+                             diff = ifelse(.data$variable == "median",
+                                                     .data$value2 - .data$value1,
+                                                     .data$diff))
+
+floating_Long_low <- MODFLOW_comparison %>%
+                     filter(.data$lake == "Long",
+                            .data$variable == "90") %>%
+                     select(.data$lake, .data$hydrology, .data$metric, 
+                            .data$variable, .data$sim, .data$scenario,
+                            .data$sim_type) %>%
+                     unique() %>%
+                     mutate(category = "plants",
+                            indicator = "floating",
+                            significant_if = "lower",
+                            value1 = 0,
+                            value2 = 0,
+                            threshold = 0,
+                            threshold_diff = 0,
+                            diff = 0,
+                            bathy1 = 0,
+                            bathy_threshold = 0,
+                            bathy2 = 0,
+                            bathy_threshold_diff = 0,
+                            bathy_diff = 0, 
+                            bathy_significant_if = "lower")
+
+MODFLOW_comparison <- bind_rows(MODFLOW_comparison, floating_Long_low)
+
+
+well_rank_dist   <- CSLSscenarios::well_rank_dist
+ecological_rules <- CSLSscenarios::ecological_rules %>%
+                    select(.data$metric, .data$indicator, .data$bathy_metric)
+
+MODFLOW_comparison <- left_join(MODFLOW_comparison, well_rank_dist,
+                                by = c("lake", "sim")) %>%
+                      mutate(dist_m = ifelse(is.na(.data$dist_m),
+                                             0, .data$dist_m))
+
+variables <- data.frame(variable = c("90", "75", "50", "25", "10", "range_10_90",
+                                     "percent_install", "percent_no_move",
+                                     "percent_good_year", "percent_ok", 
+                                     "percent_paddle", "percent_epa_lake", 
+                                     "percent_open_lake", "good_spawning",
+                                     "max", "median"),
+                        name = c("Infrequent Low (ft)", "Frequent Low (ft)", "Median (ft)", 
+                                 "Frequent High (ft)", "Infrequent High (ft)", 
+                                 "Range of Levels (ft)", "Can Install Dock (%)", 
+                                 "Don't Move Dock (%)", "Good Dock Years (%)", 
+                                 "Good Motorboating (%)", "Good Paddlesports (%)", "Is Lake (%)", 
+                                 "Is Open Lake (%)", "Good Pike Spawning (%)",
+                                 "Max Mg (mg/L)", "Median Mg (mg/L)"))
+MODFLOW_comparison <- left_join(MODFLOW_comparison, variables, by = "variable")
+MODFLOW_comparison$name <- factor(MODFLOW_comparison$name,
+                                  levels = variables$name)
+
+```
+
+```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE}
+# Most limiting by ecological category -----------------------------------------
+summary      <- MODFLOW_comparison %>%
+                 group_by(.data$scenario,
+                          .data$sim,
+                          .data$lake,
+                          .data$hydrology,
+                          .data$metric,
+                          .data$variable,
+                          .data$name,
+                          .data$value1,
+                          .data$value2,
+                          .data$diff,
+                          .data$category,
+                          .data$significant_if) %>%
+                 mutate(limit_threshold = ifelse(.data$significant_if == "lower",
+                                                 max(.data$threshold, na.rm = TRUE),
+                                                 min(.data$threshold, na.rm = TRUE))) %>%
+                 filter(.data$limit_threshold == .data$threshold) %>%
+                 ungroup() %>%
+                 group_by(.data$lake, .data$sim, .data$dist_m, .data$scenario, 
+                          .data$metric, .data$variable, .data$name, .data$category) %>%
+                 summarise(indicator = ifelse(length(.data$indicator) > 1,
+                                              ifelse(max(.data$value1) > max(.data$value2),
+                                                     .data$indicator[which(.data$significant_if == "lower")],
+                                                     .data$indicator[which(.data$significant_if == "higher")]),
+                                              .data$indicator),
+                           impacted = max(.data$impacted),
+                           value1 = max(.data$value1),
+                           value2 = ifelse(length(.data$value2) > 1,
+                                           ifelse(max(.data$value1) > max(.data$value2),
+                                                  .data$value2[which(.data$significant_if == "lower")],
+                                                  .data$value2[which(.data$significant_if == "higher")]),
+                                           .data$value2),
+                           threshold = ifelse(length(.data$threshold) > 1,
+                                              ifelse(max(.data$value1) > max(.data$value2),
+                                                     .data$threshold[which(.data$significant_if == "lower")],
+                                                     .data$threshold[which(.data$significant_if == "higher")]),
+                                              .data$threshold),
+                           diff = ifelse(length(.data$diff) > 1,
+                                         ifelse(max(.data$value1) > max(.data$value2),
+                                                .data$diff[which(.data$significant_if == "lower")],
+                                                .data$diff[which(.data$significant_if == "higher")]),
+                                         .data$diff),
+                           threshold_diff = ifelse(length(.data$threshold_diff) > 1,
+                                                   ifelse(max(.data$value1) > max(.data$value2),
+                                                          .data$threshold_diff[which(.data$significant_if == "lower")],
+                                                          .data$threshold_diff[which(.data$significant_if == "higher")]),
+                                                   .data$threshold_diff),
+                           bathy1 = max(.data$value1),
+                           bathy2 = ifelse(length(.data$bathy2) > 1,
+                                           ifelse(max(.data$bathy1) > max(.data$bathy2),
+                                                  .data$bathy2[which(.data$bathy_significant_if == "lower")],
+                                                  .data$bathy2[which(.data$bathy_significant_if == "higher")]),
+                                           .data$bathy2),
+                           bathy_threshold = ifelse(length(.data$bathy_threshold) > 1,
+                                                    ifelse(max(.data$bathy1) > max(.data$bathy2),
+                                                           .data$bathy_threshold[which(.data$bathy_significant_if == "lower")],
+                                                           .data$bathy_threshold[which(.data$bathy_significant_if == "higher")]),
+                                                    .data$bathy_threshold),
+                           bathy_diff = ifelse(length(.data$bathy_diff) > 1,
+                                               ifelse(max(.data$bathy1) > max(.data$bathy2),
+                                                      .data$bathy_diff[which(.data$bathy_significant_if == "lower")],
+                                                      .data$bathy_diff[which(.data$bathy_significant_if == "higher")]),
+                                               .data$bathy_diff),
+                           bathy_threshold_diff = ifelse(length(.data$bathy_threshold_diff) > 1,
+                                                         ifelse(max(.data$bathy1) > max(.data$bathy2),
+                                                                .data$bathy_threshold_diff[which(.data$bathy_significant_if == "lower")],
+                                                                .data$bathy_threshold_diff[which(.data$bathy_significant_if == "higher")]),
+                                                         .data$bathy_threshold_diff),
+                           significant_if = ifelse(length(.data$significant_if) > 1,
+                                                         ifelse(max(.data$value1) > max(.data$value2),
+                                                                .data$significant_if[which(.data$bathy_significant_if == "lower")],
+                                                                .data$significant_if[which(.data$bathy_significant_if == "higher")]),
+                                                         .data$significant_if),
+                           .groups = "drop") %>%
+                 mutate(impacted = ifelse(.data$impacted == 1,
+                                          TRUE, 
+                                          ifelse(.data$impacted == 0, 
+                                                 FALSE, NA)))
+
+```
+
+## Background
+
+In order to understand what area contributes to the impact at Long and
+Plainfield lakes, we ran a scenario in which we turned wells off and switched
+land use to the no-irrigated-agriculture value one at a time. We started with
+the well closest to the centroid of Long Lake, then progressively increased the
+zone of no-irrigated-agriculture until all of the 321 wells which were simulated
+in the inset model had been removed with land use switched to the
+no-irrigated-agriculture value.
+
+<br>
+
+## Overall Summary
+
+The figure below shows the number of ecosystem indicators that are classified as
+unimpacted as the radius of the no-irrigated-agriculture area surrounding Long
+and Plainfield lakes increases.
+
+<br>
+
+```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE, fig.width=6.5, fig.height=2.5}
+total_impacts <- summary %>%
+                 group_by(.data$lake, .data$scenario, .data$sim, .data$dist_m) %>%
+                 summarise(n = n(),
+                           impacted = sum(.data$impacted, na.rm = TRUE),
+                           not_impacted = .data$n - .data$impacted,
+                           .groups = "drop")
+
+plot_df <- total_impacts %>% 
+           filter(.data$lake != "Pleasant") %>%
+           mutate(lake = sprintf("%s Lake", .data$lake))
+
+stars <- plot_df %>%
+         group_by(.data$lake) %>%
+         mutate(no_wells = .data$sim[min(which(.data$impacted == 0))]) %>%
+         filter(.data$no_wells == .data$sim) %>%
+         ungroup()
+
+ggplot(plot_df) +
+  geom_line(aes(x = NISTmeterTOmile(.data$dist_m),
+                y = .data$not_impacted)) +
+  geom_hline(data = unique(plot_df[,c("lake", "n")]),
+             aes(yintercept = .data$n),
+             linetype = "dashed") +
+  geom_point(data = stars,
+             aes(x = NISTmeterTOmile(.data$dist_m), 
+                 y = .data$not_impacted),
+             shape = 17,
+             size = 3) +
+  geom_text(data = stars, 
+           aes(x = NISTmeterTOmile(.data$dist_m) + 1.5, 
+               y = .data$not_impacted - 3,
+               label = sprintf("%s wells\n%0.1f miles", 
+                               .data$sim, 
+                               NISTmeterTOmile(.data$dist_m))),
+           family = "Segoe UI Semilight") +
+  labs(x = "Radius around Long Lake with no irrigated agriculture (miles)",
+       y = "Number of\nUnimpacted Indicators") +
+  scale_x_continuous(breaks = seq(0,10,2),
+                     minor_breaks = seq(0,10,1),
+                     expand = c(0,0)) +
+  facet_grid(~lake) +
+  theme_bw() +
+  theme(text= element_text(family = "Segoe UI Semilight",
+                           size = 12))
+```
+
+<br>
+
+```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE}
+plot_value_indicators <- function(df, lake) {
+  
+  thresholds <- df %>%
+                filter(.data$lake == !!lake) %>%
+                mutate(ymin = ifelse(.data$significant_if == "lower",
+                                     .data$threshold_diff, -Inf),
+                ymax = ifelse(.data$significant_if == "higher",
+                              .data$threshold_diff, Inf)) %>%
+                select(.data$name, .data$category, .data$threshold_diff, 
+                       .data$ymin, .data$ymax) %>%
+                unique()
+  
+  rectangles <- thresholds %>%
+                group_by(.data$name, .data$category) %>%
+                summarise(ymin = max(.data$ymin),
+                          ymax = min(.data$ymax),
+                          .groups = "drop")
+  
+  plot_obj <- ggplot(filter(summary, .data$lake == !!lake)) +
+              geom_hline(yintercept = 0,
+                         size = 1) +
+              geom_line(aes(x = NISTmeterTOmile(.data$dist_m),
+                            y = .data$diff)) +
+              geom_hline(data = thresholds,
+                         aes(yintercept = .data$threshold_diff,
+                             color = .data$category),
+                         size = 1)  +
+              geom_rect(data = rectangles,
+                        aes(xmin = -Inf,
+                            xmax = Inf,
+                            ymin = .data$ymin,
+                            ymax = .data$ymax,
+                            fill = .data$category),
+                        color = NA,
+                        alpha = 0.3) +
+              facet_wrap(~name, scales = "free_y", ncol = 5) +
+              labs(x = "Radius around Long Lake with no irrigated agriculture (miles)",
+                   y = "Difference relative to No Irrigated Agriculture") +
+              scale_x_continuous(expand = c(0,0),
+                                 breaks = c(0,5,10),
+                                 minor_breaks = seq(0,10,1)) +
+              scale_color_manual(name = "Significant Thresholds",
+                       breaks = c("human_use", "fish", "plants", "chemistry"),
+                       labels = c("Human Use", "Fish", "Plants", "Chemistry"),
+                       values = c("#E78AC3", "#8DA0CB", "#66C2A5", "#FC8D62")) +
+              scale_fill_manual(name = "Significant Thresholds",
+                                breaks = c("human_use", "fish", "plants", "chemistry"),
+                                labels = c("Human Use", "Fish", "Plants", "Chemistry"),
+                                values = c("#E78AC3", "#8DA0CB", "#66C2A5", "#FC8D62"))+
+              theme_bw() +
+              theme(text= element_text(family = "Segoe UI Semilight",
+                                       size = 8),
+                    legend.position = "top")
+  return(plot_obj)
+}
+
+```
+
+
+```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE, fig.width = 6.5, fig.height = 6}
+bathy_metrics <- left_join(MODFLOW_comparison, ecological_rules,
+                           by = c("metric", "indicator")) %>%
+                 filter(.data$metric == "exceedance_level",
+                        .data$lake != "Pleasant") %>%
+                 mutate(bathy_metric = ifelse(is.na(.data$bathy_metric),
+                                              .data$indicator, 
+                                              .data$bathy_metric)) %>% 
+                 select(.data$lake, .data$category, .data$indicator, 
+                        .data$bathy_metric, .data$variable, 
+                        .data$bathy_threshold_diff, .data$bathy_diff, 
+                        .data$bathy_significant_if, .data$sim, .data$dist_m) %>%
+                 filter(.data$bathy_metric != "")
+
+bathy_variables <- data.frame(bathy_metric = c("vol_m3", "area_m2", "upland", 
+                                               "inland_beach", "emergent", 
+                                               "floating", "submergent"),
+                              bathy_name = c("Lake Volume\n(ac-ft)", 
+                                             "Lake Area\n(ac)", 
+                                             "Upland\n(% Lake)",
+                                             "Inland Beach\n(% Lake)", 
+                                             "Emergents\n(% Lake)",
+                                             "Floating Leaf\n(% Lake)",
+                                             "Submergents\n(% Lake)"))
+level_variables <- data.frame(variable = c("90", "75", "50", "25", "10"),
+                              var_name = c("Infrequent Low", "Frequent Low", "Median", 
+                                           "Frequent High", "Infrequent High"))
+bathy_metrics <- left_join(bathy_metrics, bathy_variables,
+                           by = "bathy_metric") %>%
+                 left_join(level_variables, by = "variable")
+bathy_metrics$var_name <- factor(bathy_metrics$var_name, level_variables$var_name)
+
+plot_mag_thresholds <- function(df, lake, bathy_metric) {
+  if (bathy_metric == "area_m2") {
+    df <- df %>%
+          mutate(bathy_diff = NISTsqrMeterTOacre(.data$bathy_diff),
+                 bathy_threshold_diff = NISTsqrMeterTOacre(.data$bathy_threshold_diff))
+  } else if (bathy_metric == "vol_m3") {
+    df <- df %>%
+          mutate(bathy_diff = NISTcubMeterTOacreFt(.data$bathy_diff),
+                 bathy_threshold_diff = NISTcubMeterTOacreFt(.data$bathy_threshold_diff))
+  }
+  
+  plot_df <- df %>% 
+             filter(.data$lake == !!lake, 
+                    bathy_metric == !!bathy_metric)
+  thresholds <- unique(plot_df[,c("bathy_threshold_diff", "var_name",
+                                  "bathy_name", "category", "bathy_significant_if")]) %>%
+                mutate(ymin = ifelse(.data$bathy_significant_if == "lower",
+                                     .data$bathy_threshold_diff, -Inf),
+                       ymax = ifelse(.data$bathy_significant_if == "higher",
+                                     .data$bathy_threshold_diff, Inf))
+  plot_obj <- ggplot(plot_df) +
+              geom_hline(yintercept = 0,
+                         size = 1) +
+              geom_line(aes(x = NISTmeterTOmile(.data$dist_m),
+                            y = .data$bathy_diff)) +
+              geom_hline(data = thresholds,
+                         aes(yintercept = .data$bathy_threshold_diff,
+                             color = .data$category),
+                         size = 1)  +
+              geom_rect(data = thresholds,
+                        aes(xmin = -Inf,
+                            xmax = Inf,
+                            ymin = .data$ymin,
+                            ymax = .data$ymax,
+                            fill = .data$category),
+                        color = NA,
+                        alpha = 0.3) +
+              facet_wrap(~var_name, nrow = 1) +
+              scale_color_manual(name = "",
+                                 breaks = c("human_use", "fish", "plants", "chemistry"),
+                                 labels = c("Human Use", "Fish", "Plants", "Chemistry"),
+                                 values = c("#E78AC3", "#8DA0CB", "#66C2A5", "#FC8D62")) +
+              scale_fill_manual(name = "",
+                                 breaks = c("human_use", "fish", "plants", "chemistry"),
+                                 labels = c("Human Use", "Fish", "Plants", "Chemistry"),
+                                 values = c("#E78AC3", "#8DA0CB", "#66C2A5", "#FC8D62")) +
+              scale_x_continuous(breaks = c(0,5,10),
+                                 minor_breaks = seq(0,10,1)) +
+              labs(y = unique(plot_df$bathy_name),
+                   x = "Radius around Long Lake with no irrigated agriculture (miles)") +
+              theme_bw() +
+              theme(text= element_text(family = "Segoe UI Semilight",
+                                       size = 10),
+                    legend.position = "top")
+  return(plot_obj)
+}
+
+```
+
+## Long Lake
+
+
+### Ecosystem Indicators
+
+Here, we take a closer look at the severity of impact to each ecosystem
+indicator. The plot below shows key hydrologic metrics as well as significant
+thresholds (colored lines) and zones where the metric is unimpacted (shaded
+areas) for different types of ecosystem indicators (human use, fish, plants, and
+chemistry).
+
+<br>
+
+```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE, fig.width = 6.5, fig.height = 5}
+plot_value_indicators(summary, "Long") 
+```
+
+<br>
+
+### Detailed Bathymetry-related Metrics
+
+Here, we zoom in on the exceedance level metrics and break down how different
+ecosystem indicators related to bathymetry are impacted.
+
+<br>
+
+```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE, fig.width=6.5, fig.height=8}
+p1 <- plot_mag_thresholds(bathy_metrics, "Long", "vol_m3") + xlab("")
+p2 <- plot_mag_thresholds(bathy_metrics, "Long", "area_m2") + xlab("")
+p3 <- plot_mag_thresholds(bathy_metrics, "Long", "upland") + xlab("")
+p4 <- plot_mag_thresholds(bathy_metrics, "Long", "inland_beach") + xlab("")
+p5 <- plot_mag_thresholds(bathy_metrics, "Long", "emergent") + xlab("")
+p6 <- plot_mag_thresholds(bathy_metrics, "Long", "floating") + xlab("")
+p7 <- plot_mag_thresholds(bathy_metrics, "Long", "submergent")
+
+p1 + p2 + p3 + p4 + p5 + p6 + p7 + plot_layout(guides = "collect", ncol = 1) &
+  theme(legend.position = "top",
+        plot.margin = margin(0,1,0,1))
+```
+
+<br>
+
+## Plainfield Lake
+
+### Ecosystem Indicators
+
+Here, we take a closer look at the severity of impact to each ecosystem
+indicator. The plot below shows key hydrologic metrics as well as significant
+thresholds (colored lines) and zones where the metric is unimpacted (shaded
+areas) for different types of ecosystem indicators (human use, plants, and
+chemistry).
+
+<br>
+
+```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE, fig.width = 6.5, fig.height = 3.75}
+plot_value_indicators(summary, "Plainfield") 
+```
+
+<br>
+
+### Detailed Bathymetry-related Metrics
+Here, we zoom in on the exceedance level metrics and break down how different
+ecosystem indicators related to bathymetry are impacted.
+
+<br>
+
+```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE, fig.width=6.5, fig.height=5.8}
+p1 <- plot_mag_thresholds(bathy_metrics, "Plainfield", "upland") + xlab("")
+p2 <- plot_mag_thresholds(bathy_metrics, "Plainfield", "inland_beach") + xlab("")
+p3 <- plot_mag_thresholds(bathy_metrics, "Plainfield", "emergent") + xlab("")
+p4 <- plot_mag_thresholds(bathy_metrics, "Plainfield", "floating") + xlab("")
+p5 <- plot_mag_thresholds(bathy_metrics, "Plainfield", "submergent")
+
+p1 + p2 + p3 + p4 + p5 + plot_layout(guides = "collect", ncol = 1) &
+  theme(legend.position = "top",
+        plot.margin = margin(0,1,0,1))
+```

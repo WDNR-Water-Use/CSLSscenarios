@@ -1,0 +1,405 @@
+---
+title: "Lake Level Regime - Visualization"
+output: 
+  rmarkdown::html_vignette:
+    toc: true
+vignette: >
+  %\VignetteIndexEntry{Lake Level Regime - Visualization}
+  %\VignetteEngine{knitr::rmarkdown}
+  \usepackage[utf8]{inputenc}
+---
+
+## Lake Level Visualization
+
+Alternate ways of visualizing time series of lake levels and different features
+of the lake level regime, e.g., magnitude, duration. Developed for use of
+figures in presentations which build on one another to introcude these concepts.
+Order of plots is always Pleasant (top), Long (middle), and Plainfield (bottom).
+Scenario illustrated here is the no-irrigated-agriculture scenario.
+
+<br>
+
+```{r setup, eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE}
+library(CSLSscenarios)
+library(dplyr)
+library(reshape2)
+library(NISTunits)
+library(lubridate)
+library(ggplot2)
+library(extrafont)
+library(patchwork)
+
+save_on    <- FALSE
+fig_width  <- 8.7
+fig_height <- 2
+
+scenarios <- data.frame(scenario = c("no_irr", "cur_irr", "fut_irr"),
+                        scenario_name = c("No Irrigated Agriculture", 
+                                          "Current Irrigated Agriculture",
+                                          "Potential Irrigated Agriculture"),
+                        colors = c("steelblue4", "goldenrod1", "darkorange"))
+
+# Lake Levels ------------------------------------------------------------------
+MODFLOW <- CSLSdata::MODFLOW %>%
+           filter(.data$scenario %in% scenarios$scenario,
+                  year(.data$date) >= 1986,
+                  year(.data$date) <= 2018) %>%
+           mutate(year = year(.data$date),
+                  month = month(.data$date),
+                  time = .data$year - min(.data$year) + .data$month/12,
+                  level = NISTmeterTOft(.data$level_m)) %>%
+           left_join(scenarios, by = "scenario") %>%
+           select(scenario = .data$scenario_name,
+                  sim = .data$sim,
+                  lake = .data$lake, 
+                  date = .data$date,
+                  time = .data$time,
+                  level = .data$level)
+
+# Metrics ----------------------------------------------------------------------
+MODFLOW_metrics <- CSLSscenarios::MODFLOW_metrics %>%
+                   group_by(.data$lake, .data$metric, .data$variable,
+                            .data$scenario, .data$series) %>%
+                   summarise(base = .data$value[which(.data$sim == 1)],
+                             sd = sd(.data$value, na.rm = TRUE),
+                             .groups = "drop") %>%
+                   left_join(scenarios, by = "scenario") %>%
+                   select(scenario = .data$scenario_name, 
+                          lake = .data$lake, 
+                          metric = .data$metric, 
+                          variable = .data$variable, 
+                          series = .data$series, 
+                          base = .data$base, 
+                          sd = .data$sd)
+
+
+MODFLOW_metrics$scenario <- factor(MODFLOW_metrics$scenario, 
+                                   levels = scenarios$scenario_name)
+
+exceeds <- MODFLOW_metrics %>%
+           filter(.data$metric == "exceedance_level",
+                  .data$scenario == "No Irrigated Agriculture",
+                  .data$series == "month") %>%
+           mutate(base = NISTmeterTOft(.data$base))
+```
+
+```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE}
+# Unit Conversions
+m_metrics    <- c("exceedance_level", "mean_depth", "max_depth", "median_level",
+                  "median_rise_rate", "median_fall_rate")
+m2_metrics   <- c("area", "centrarchid_substrate")
+m3_metrics   <- c("volume")
+
+# Rounding
+d1_metrics   <- c("exceedance_level", "mean_depth", "max_depth", "area",
+                  "centrarchid_substrate", "upland_pcnt", "inland_beach_pcnt", 
+                  "emergent_pcnt", "floating_pcnt", "submergent_pcnt", 
+                  "submergent_algae_pcnt", "submergent_weed_pcnt",
+                  "median_level", "cv_level", "median_rise_rate",
+                  "median_fall_rate", "season_higher", 
+                  "season_lower", "good_spawning")
+d0_metrics   <- c("volume", "num_dur", "num_2yr", "median_dur", "cv_dur",
+                  "rise_3ft", "rise_1_5ft", "fall_3ft", "fall_1_5ft", 
+                  "cv_rise_rate", "cv_fall_rate")
+
+# Friendly names
+med_metrics <- data.frame(metric = c("median_level", "cv_level"),
+                             name = c("Median Lake Level (ft)",
+                                      "CV of Max Depth (%)"))
+med_var    <- data.frame(variable = c("0", "1", "4", "7", "10"),
+                         var_name = c("Overall", "Winter", "Spring", 
+                                      "Summer", "Fall"))
+
+exceed_metrics <- data.frame(metric = c("exceedance_level", 
+                                        "area", 
+                                        "volume", 
+                                        "mean_depth", 
+                                        "max_depth"),
+                             name = c("Elevation (ft)",
+                                      "Area (acres)",
+                                      "Volume (acre-ft)",
+                                      "Mean Depth (ft)",
+                                      "Max Depth (ft)"))
+exceed_var <- data.frame(variable = c("10", "25", "50", "75", "90"),
+                         var_name = c("Infrequent High", 
+                                      "Frequent High",
+                                      "Median", 
+                                      "Frequent Low",
+                                      "Infrequent Low"))
+
+plant_metrics  <- data.frame(metric = c("upland_pcnt", 
+                                        "inland_beach_pcnt", 
+                                        "emergent_pcnt", 
+                                        "floating_pcnt", 
+                                        "submergent_pcnt", 
+                                        "submergent_algae_pcnt", 
+                                        "submergent_weed_pcnt"),
+                             name = c("Upland (% of lake)",
+                                      "Inland Beach (% of lake)",
+                                      "Emergents (% of lake)",
+                                      "Floating-Leaf (% of lake)",
+                                      "Submergents (% of lake)",
+                                      "Submergent Macroalgae (% of lake)",
+                                      "Submergent Pondweeds (% of lake)"))
+plant_var <- data.frame(variable = c("10", "25", "50", "75", "90"),
+                         var_name = c("Infrequent High", 
+                                      "Frequent High",
+                                      "Median", 
+                                      "Frequent Low",
+                                      "Infrequent Low"))
+
+dur_metrics <- data.frame(metric = c("num_dur", "num_2yr", 
+                                     "median_dur", "cv_dur"),
+                             name = c("Times Exceeded for 1+ months",
+                                      "Times Exceeded for 2+ yrs",
+                                      "Median Duration (months)",
+                                      "CV of Duration (%)"))
+dur_var    <- data.frame(variable = c("10", "25", "a50", "b50", "75", "90"),
+                         var_name = c("Infrequent High", 
+                                      "Frequent High",
+                                      "Above Median",
+                                      "Below Median", 
+                                      "Frequent Low",
+                                      "Infrequent Low"))
+
+rate_metrics <- data.frame(metric = c("median_rise_rate", 
+                                      "cv_rise_rate", 
+                                      "rise_1_5ft",
+                                      "rise_3ft",
+                                      "median_fall_rate", 
+                                      "cv_fall_rate", 
+                                      "fall_1_5ft",
+                                      "fall_3ft"),
+                           name = c("Median Rise Rate (ft/time)",
+                                    "CV of Rise Rate (%)",
+                                    "Times Rise Rate > 1.5 ft/time",
+                                    "Times Rise Rate > 3 ft/time",
+                                    "Median Fall Rate (ft/time)",
+                                    "CV of Fall Rate (%)",
+                                    "Times Fall Rate > 1.5 ft/time",
+                                    "Times Fall Rate > 3 ft/time"))
+rate_var    <- data.frame(variable = c("1", "3", "12"),
+                          var_name = c("1 Month", "3 Month", "12 Month"))
+
+time_metrics <- data.frame(metric = c("season_higher", "good_spawning"),
+                           name = c("% Years > Prior Season",
+                                    "% Years > Prior Growing Season"))
+time_var    <- data.frame(variable = c("1", "4", "high_spring", "7", "10"),
+                          var_name = c("Winter", "Spring", "Spring", 
+                                       "Summer", "Fall"))
+```
+
+```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE}
+plot_levels <- function(df, exceeds, scenarios, lake, 
+                        shaded = FALSE, median = FALSE,
+                        dur_high = FALSE, dur_low = FALSE,
+                        scenario = "No Irrigated Agriculture", text_size = 14) {
+  df <- df %>% 
+        filter(.data$lake == !!lake,
+               .data$scenario == !!scenario,
+               .data$sim == 1)
+  
+  median_line  <- exceeds %>% 
+                  filter(.data$lake == !!lake, 
+                         .data$variable == "50")
+  rectangle   <- exceeds %>% 
+                 filter(.data$lake == !!lake,
+                        .data$variable %in% c("10", "90")) %>% 
+                 select(.data$lake, .data$variable, .data$base) %>%
+                 dcast(lake~variable, value.var = "base")
+  ribbon_df   <- df %>%
+                 mutate(x = .data$time,
+                        median = median_line$base,
+                        scenario = scenario) %>%
+                     select(.data$scenario, .data$x, .data$level, .data$median)
+  dur_high_ribbon <- ribbon_df %>%
+                     mutate(ymin = .data$median,
+                            ymax = ifelse(.data$median > .data$level,
+                                          .data$median, .data$level))
+  dur_low_ribbon <- ribbon_df %>%
+                     mutate(ymax = .data$median,
+                            ymin = ifelse(.data$median < .data$level,
+                                          .data$median, .data$level))
+  
+  # Build plot
+  plot_obj <- ggplot(df)
+  
+  # Infrequent High to Low
+  if (shaded) {
+    plot_obj <- plot_obj +
+                geom_rect(data = rectangle,
+                          mapping = aes(xmin = -Inf,
+                                        xmax = Inf,
+                                        ymin = .data$`90`,
+                                        ymax = .data$`10`),
+                          fill = "steelblue4",
+                          color = NA,
+                          alpha = 0.1) 
+  }
+  
+  if (median) {
+    plot_obj <- plot_obj +
+                geom_hline(data = median_line,
+                           aes(yintercept = .data$base),
+                           linetype = "solid")
+  }
+  
+  if (dur_high) {
+    plot_obj <- plot_obj +
+                geom_ribbon(data = dur_high_ribbon,
+                           aes(x = .data$x,
+                               ymin = .data$ymin,
+                               ymax = .data$ymax,
+                               color = NA,
+                               fill = .data$scenario),
+                          alpha = 0.1)
+  }
+  
+  if (dur_low) {
+    plot_obj <- plot_obj +
+                geom_ribbon(data = dur_low_ribbon,
+                           aes(x = .data$x,
+                               ymin = .data$ymin,
+                               ymax = .data$ymax,
+                               color = NA,
+                               fill = .data$scenario),
+                          alpha = 0.1)
+  }
+  
+  plot_obj <- plot_obj +
+              geom_line(aes(x = .data$time,
+                            y = .data$level,
+                            color = .data$scenario),
+                        size = 1) +
+              scale_color_manual(name = "Scenario",
+                                 breaks = scenarios$scenario_name,
+                                 values = scenarios$colors,
+                                 labels = scenarios$scenario_name) +
+              scale_fill_manual(name = "Scenario",
+                                 breaks = scenarios$scenario_name,
+                                 values = scenarios$colors,
+                                 labels = scenarios$scenario_name) +
+              labs(x = "Time (yrs)", y = "Elevation (ft)") +
+              scale_x_continuous(expand = c(0,0),
+                                 breaks = seq(0,34,5),
+                                 minor_breaks = seq(0, 34, 1)) +
+              theme_bw() +
+              theme(text = element_text(family = "Segoe UI Semilight",
+                                        size = text_size),
+                    legend.position = "none",
+                    panel.background = element_rect(fill = "transparent", 
+                                                    color = NA),  
+                    plot.background = element_rect(fill = "transparent", 
+                                                   color = NA))
+  
+  return(plot_obj)
+}
+```
+
+
+### Time series only
+
+```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE, fig.width=fig_width, fig.height=3*fig_height}
+p1 <- plot_levels(MODFLOW, exceeds, scenarios, lake = "Pleasant")
+p2 <- plot_levels(MODFLOW, exceeds, scenarios, lake = "Long")
+p3 <- plot_levels(MODFLOW, exceeds, scenarios, lake = "Plainfield")
+
+if (save_on) {
+  ggsave("psnt_no_irr.png", p1, 
+         device = "png", width = fig_width, height = fig_height, units = "in")
+  ggsave("long_no_irr.png", p2, 
+         device = "png", width = fig_width, height = fig_height, units = "in")
+  ggsave("pfl_no_irr.png", p3, 
+         device = "png", width = fig_width, height = fig_height, units = "in")
+}
+
+p1 + p2 + p3 + plot_layout(ncol = 1, guides = "collect")
+
+```
+
+<br>
+
+### Time series with median level
+
+```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE, fig.width=fig_width, fig.height=3*fig_height}
+p1 <- plot_levels(MODFLOW, exceeds, scenarios, lake = "Pleasant", median = TRUE)
+p2 <- plot_levels(MODFLOW, exceeds, scenarios, lake = "Long", median = TRUE)
+p3 <- plot_levels(MODFLOW, exceeds, scenarios, lake = "Plainfield", median = TRUE)
+
+if (save_on) {
+  ggsave("psnt_no_irr_median.png", p1, 
+         device = "png", width = fig_width, height = fig_height, units = "in")
+  ggsave("long_no_irr_median.png", p2, 
+         device = "png", width = fig_width, height = fig_height, units = "in")
+  ggsave("pfl_no_irr_median.png", p3, 
+         device = "png", width = fig_width, height = fig_height, units = "in")
+}
+
+p1 + p2 + p3 + plot_layout(ncol = 1, guides = "collect")
+
+```
+
+<br>
+
+### Time series with median level and 10%-90% exceedance probability levels shaded
+```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE, fig.width=fig_width, fig.height=3*fig_height}
+p1 <- plot_levels(MODFLOW, exceeds, scenarios, lake = "Pleasant", median = TRUE, shaded = TRUE)
+p2 <- plot_levels(MODFLOW, exceeds, scenarios, lake = "Long", median = TRUE, shaded = TRUE)
+p3 <- plot_levels(MODFLOW, exceeds, scenarios, lake = "Plainfield", median = TRUE, shaded = TRUE)
+
+if (save_on) {
+  ggsave("psnt_no_irr_median_range.png", p1, 
+         device = "png", width = fig_width, height = fig_height, units = "in")
+  ggsave("long_no_irr_median_range.png", p2, 
+         device = "png", width = fig_width, height = fig_height, units = "in")
+  ggsave("pfl_no_irr_median_range.png", p3, 
+         device = "png", width = fig_width, height = fig_height, units = "in")
+}
+
+p1 + p2 + p3 + plot_layout(ncol = 1, guides = "collect")
+
+```
+
+<br>
+
+### Time series with duration above the median level shaded
+
+```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE, fig.width=fig_width, fig.height=3*fig_height}
+p1 <- plot_levels(MODFLOW, exceeds, scenarios, lake = "Pleasant", median = TRUE, dur_high = TRUE)
+p2 <- plot_levels(MODFLOW, exceeds, scenarios, lake = "Long", median = TRUE, dur_high = TRUE)
+p3 <- plot_levels(MODFLOW, exceeds, scenarios, lake = "Plainfield", median = TRUE, dur_high = TRUE)
+
+if (save_on) {
+  ggsave("psnt_no_irr_dur_high.png", p1, 
+         device = "png", width = fig_width, height = fig_height, units = "in")
+  ggsave("long_no_irr_dur_high.png", p2, 
+         device = "png", width = fig_width, height = fig_height, units = "in")
+  ggsave("pfl_no_irr_dur_high.png", p3, 
+         device = "png", width = fig_width, height = fig_height, units = "in")
+}
+
+p1 + p2 + p3 + plot_layout(ncol = 1, guides = "collect")
+
+```
+
+<br>
+
+### Time series with duration below the median level shaded
+
+```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE, fig.width=fig_width, fig.height=3*fig_height}
+p1 <- plot_levels(MODFLOW, exceeds, scenarios, lake = "Pleasant", median = TRUE, dur_low = TRUE)
+p2 <- plot_levels(MODFLOW, exceeds, scenarios, lake = "Long", median = TRUE, dur_low = TRUE)
+p3 <- plot_levels(MODFLOW, exceeds, scenarios, lake = "Plainfield", median = TRUE, dur_low = TRUE)
+
+if (save_on) {
+  ggsave("psnt_no_irr_dur_low.png", p1, 
+         device = "png", width = fig_width, height = fig_height, units = "in")
+  ggsave("long_no_irr_dur_low.png", p2, 
+         device = "png", width = fig_width, height = fig_height, units = "in")
+  ggsave("pfl_no_irr_dur_low.png", p3, 
+         device = "png", width = fig_width, height = fig_height, units = "in")
+}
+
+p1 + p2 + p3 + plot_layout(ncol = 1, guides = "collect")
+
+```

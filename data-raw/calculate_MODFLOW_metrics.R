@@ -1,4 +1,5 @@
-# Calculate imputed lake levels
+# Calculate hydrologic metrics
+# Calculate relevant hydrologic metrics from 38-year MODFLOW scenarios
 
 library(tidyverse)
 library(lubridate)
@@ -7,13 +8,14 @@ library(CSLSscenarios)
 library(NISTunits)
 library(reshape2)
 
-# PARAMETERS: Lakes of interest
-lakes   <- c("Pleasant", "Long", "Plainfield")
+# PARAMETERS: Lakes of interest ------------------------------------------------
+lakes     <- c("Pleasant", "Long", "Plainfield")
+scenarios <- c("no_irr", "cur_irr", "wells_off") # 38-year scenarios
 
-# DATA: Load MODFLOW data for climate runs
+# DATA: Load MODFLOW data for climate runs -------------------------------------
 # Allow for a burn-in period, nix first 5 years (start at 1986)
 MODFLOW <- CSLSdata::MODFLOW %>%
-           filter(.data$scenario %in% c("cur_irr", "no_irr"),
+           filter(.data$scenario %in% scenarios,
                   year(.data$date) >= 1986,
                   year(.data$date) <= 2018) %>%
            select(scenario = .data$scenario,
@@ -22,7 +24,7 @@ MODFLOW <- CSLSdata::MODFLOW %>%
                   date = .data$date,
                   level = .data$level_m)
 
-# CALCULATIONS (1/2): Calculate hydrologic metrics for each sim for each lake --
+# CALCULATIONS: Calculate hydrologic metrics for each sim for each lake --------
 # Convert levels to max depths for fairer CV calcs
 lake_bottom <- data.frame(lake = lakes,
                           bottom = c(291.1426, 332.8622, 332.0755))
@@ -34,10 +36,10 @@ MODFLOW$lake   <- factor(MODFLOW$lake, levels = lakes)
 # Initialize lists for saving ouptuts
 scenario_metrics <- list()
 i <- 1
-for (scenario in c("no_irr", "cur_irr")) {
+for (scenario in scenarios) {
   message(sprintf("Starting scenario %s", scenario))
-  for (sim in unique(MODFLOW$sim)) {
-  # for (sim in c(1)) { # Limit to just base run for now (but ultimately change)
+  this_scenario <- MODFLOW %>% filter(.data$scenario == !!scenario)
+  for (sim in unique(this_scenario$sim)) {
     if (sim %% 20 == 0) {
       message(sprintf("Starting sim %s", sim))
     }
@@ -46,11 +48,19 @@ for (scenario in c("no_irr", "cur_irr")) {
                    filter(.data$scenario == !!scenario,
                           .data$sim == !!sim)
 
-    # Always use no_irr exceedance levels to calculate durations
-    if (scenario != "no_irr") {
+    #Always use no_irr exceedance levels to calculate durations
+    if (scenario %in% c("cur_irr", "fut_irr")) {
       dur_exceeds <- scenario_metrics_no_irr %>%
                      filter(.data$scenario == "no_irr",
                             .data$sim == !!sim,
+                            .data$metric == "exceedance_level") %>%
+                     select(.data$lake, .data$variable, .data$value,
+                            .data$series) %>%
+                     dcast(lake+series~variable, value.var = "value")
+    } else if (scenario == "wells_off") {
+      dur_exceeds <- scenario_metrics_no_irr %>%
+                     filter(.data$scenario == "no_irr",
+                            .data$sim == 1,
                             .data$metric == "exceedance_level") %>%
                      select(.data$lake, .data$variable, .data$value,
                             .data$series) %>%
@@ -105,5 +115,8 @@ for (scenario in c("no_irr", "cur_irr")) {
 MODFLOW_metrics      <- bind_rows(scenario_metrics)
 MODFLOW_metrics$lake <- factor(MODFLOW_metrics$lake, levels = lakes)
 
-# SAVE: Write out
+# SAVE: Write out as Rda and csv files
 usethis::use_data(MODFLOW_metrics, overwrite = TRUE, compress = "xz")
+write.csv(MODFLOW_metrics,
+          file = "inst/csv/MODFLOW_metrics.csv",
+          row.names = FALSE)

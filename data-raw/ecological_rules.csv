@@ -6,7 +6,7 @@ magnitude,chemistry,stratification,exceedance_level,75,,,0,lower,TRUE,FALSE,FALS
 magnitude,chemistry,stratification,exceedance_level,90,,,0,lower,TRUE,FALSE,FALSE
 magnitude,fish,volume_habitat,exceedance_level,10,vol_m3,10,,lower,TRUE,TRUE,FALSE
 magnitude,fish,area_habitat,exceedance_level,10,area_m2,10,,lower,TRUE,TRUE,FALSE
-magnitude,fish,littoral_habitat,exceedance_level,10,substrate_area_m2,20,,lower,TRUE,FALSE,FALSE
+magnitude,fish,littoral_habitat,exceedance_level,10,meanHrdAtNest,,0,lower,TRUE,FALSE,FALSE
 magnitude,human_use,motorboat_crowding,exceedance_level,10,area_m2,10,,lower,TRUE,FALSE,FALSE
 magnitude,plants,upland_increase,exceedance_level,10,upland_pcnt,,10,higher,TRUE,TRUE,TRUE
 magnitude,plants,inland_beach_increase,exceedance_level,10,inland_beach_pcnt,,10,higher,TRUE,TRUE,TRUE
@@ -24,7 +24,7 @@ magnitude,plants,submergent_weed_decrease,exceedance_level,10,submergent_weed_pc
 magnitude,plants,submergent_algae_decrease,exceedance_level,10,submergent_algae_pcnt,,10,lower,TRUE,FALSE,FALSE
 magnitude,fish,volume_habitat,exceedance_level,25,vol_m3,10,,lower,TRUE,TRUE,FALSE
 magnitude,fish,area_habitat,exceedance_level,25,area_m2,10,,lower,TRUE,TRUE,FALSE
-magnitude,fish,littoral_habitat,exceedance_level,25,substrate_area_m2,20,,lower,TRUE,FALSE,FALSE
+magnitude,fish,littoral_habitat,exceedance_level,25,meanHrdAtNest,,0,lower,TRUE,FALSE,FALSE
 magnitude,human_use,motorboat_crowding,exceedance_level,25,area_m2,10,,lower,TRUE,FALSE,FALSE
 magnitude,plants,upland_increase,exceedance_level,25,upland_pcnt,,10,higher,TRUE,TRUE,TRUE
 magnitude,plants,inland_beach_increase,exceedance_level,25,inland_beach_pcnt,,10,higher,TRUE,TRUE,TRUE
@@ -42,7 +42,7 @@ magnitude,plants,submergent_weed_decrease,exceedance_level,25,submergent_weed_pc
 magnitude,plants,submergent_algae_decrease,exceedance_level,25,submergent_algae_pcnt,,10,lower,TRUE,FALSE,FALSE
 magnitude,fish,volume_habitat,exceedance_level,50,vol_m3,10,,lower,TRUE,TRUE,FALSE
 magnitude,fish,area_habitat,exceedance_level,50,area_m2,10,,lower,TRUE,TRUE,FALSE
-magnitude,fish,littoral_habitat,exceedance_level,50,substrate_area_m2,20,,lower,TRUE,FALSE,FALSE
+magnitude,fish,littoral_habitat,exceedance_level,50,meanHrdAtNest,,0,lower,TRUE,FALSE,FALSE
 magnitude,human_use,motorboat_crowding,exceedance_level,50,area_m2,10,,lower,TRUE,FALSE,FALSE
 magnitude,plants,threatened_plant,exceedance_level,50,,,0,higher,FALSE,FALSE,TRUE
 magnitude,plants,threatened_plant,exceedance_level,50,,,0,lower,FALSE,FALSE,TRUE
@@ -62,7 +62,7 @@ magnitude,plants,submergent_weed_decrease,exceedance_level,50,submergent_weed_pc
 magnitude,plants,submergent_algae_decrease,exceedance_level,50,submergent_algae_pcnt,,10,lower,TRUE,FALSE,FALSE
 magnitude,fish,volume_habitat,exceedance_level,75,vol_m3,10,,lower,TRUE,TRUE,FALSE
 magnitude,fish,area_habitat,exceedance_level,75,area_m2,10,,lower,TRUE,TRUE,FALSE
-magnitude,fish,littoral_habitat,exceedance_level,75,substrate_area_m2,20,,lower,TRUE,FALSE,FALSE
+magnitude,fish,littoral_habitat,exceedance_level,75,meanHrdAtNest,,0,lower,TRUE,FALSE,FALSE
 magnitude,human_use,motorboat_crowding,exceedance_level,75,area_m2,10,,lower,TRUE,FALSE,FALSE
 magnitude,plants,upland_increase,exceedance_level,75,upland_pcnt,,10,higher,TRUE,TRUE,TRUE
 magnitude,plants,inland_beach_increase,exceedance_level,75,inland_beach_pcnt,,10,higher,TRUE,TRUE,TRUE
@@ -80,7 +80,7 @@ magnitude,plants,submergent_weed_decrease,exceedance_level,75,submergent_weed_pc
 magnitude,plants,submergent_algae_decrease,exceedance_level,75,submergent_algae_pcnt,,10,lower,TRUE,FALSE,FALSE
 magnitude,fish,volume_habitat,exceedance_level,90,vol_m3,10,,lower,TRUE,TRUE,FALSE
 magnitude,fish,area_habitat,exceedance_level,90,area_m2,10,,lower,TRUE,TRUE,FALSE
-magnitude,fish,littoral_habitat,exceedance_level,90,substrate_area_m2,20,,lower,TRUE,FALSE,FALSE
+magnitude,fish,littoral_habitat,exceedance_level,90,meanHrdAtNest,,0,lower,TRUE,FALSE,FALSE
 magnitude,human_use,motorboat_crowding,exceedance_level,90,area_m2,10,,lower,TRUE,FALSE,FALSE
 magnitude,plants,upland_increase,exceedance_level,90,upland_pcnt,,10,higher,TRUE,TRUE,TRUE
 magnitude,plants,inland_beach_increase,exceedance_level,90,inland_beach_pcnt,,10,higher,TRUE,TRUE,TRUE

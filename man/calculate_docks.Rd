@@ -2,7 +2,7 @@
 % Please edit documentation in R/calculate_docks.R
 \name{calculate_docks}
 \alias{calculate_docks}
-\title{Calculate years with bad fall rates for docks}
+\title{Calculates number of summers with good/bad conditions for docks}
 \usage{
 calculate_docks(
   df,
@@ -17,8 +17,18 @@ calculate_docks(
 and minimum desired depth (min_depth_ft) at the end of the dock.}
 }
 \value{
-docks, a data frame with the number of years with excessive water
-level drops ("move_dock") for each lake ("lake").
+docks, a data frame with the following columns:
+\item{lake}{the lake name, e.g. "Pleasant" or "Long"}
+\item{metric}{name of the hydrologic metric, in this case, "dock"}
+\item{variable}{"num_no_move" (number of years dock does not need to be moved
+after a successful install), "percent_no_move" (percent of
+years dock does not need to be moved after a successful
+install), "num_install" (number of years a dock is
+successfully installed), "percent_install" (percent of years
+a dock is successfully installed), "percent_good_year"
+(percent of years a dock is both successfully installed and
+does not need to be moved)}
+\item{value}{value of the metric}
 }
 \description{
 Given a data frame with columns for "lake", "level", "month", and "year" as
@@ -26,7 +36,8 @@ well as a data frame with additional information about the average dock
 length ("length_ft") and minimum desired depth at the end of the dock
 ("min_depth_ft") for each "lake", calculates the number of years in a time
 series where summer levels (July-Sept) dropped below the desired minimum
-depth, assuming docks were installed in June.
+depth, assuming docks were installed in June with the minimum desired depth
+at the end of the dock.
 }
 \details{
 Assumes the average horizontal lake profile for lakes is available within

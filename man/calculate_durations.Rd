@@ -28,13 +28,14 @@ and associated lake levels.}
 \value{
 durations, a data frame with the following columns:
 \item{lake}{name of lake}
-\item{variable}{exceedance probability, e.g., "10", "25", "75", or "90"}
+\item{variable}{exceedance probability, e.g., "10", "25", "75", "90", "a50"
+(for above 50\%), "b50" (for below 50\%)}
 \item{value}{one count of number of months levels were consecutively above or
 below the given exceedance probability}
 }
 \description{
 Given a data frame with a "lake", "date", and "level" columns as well as a
 vector of desired exceedance probabilities, calculates consecutive months
-at/above (for probabilities <= 50\%) or at/below (for probabilities > 50\%) the
+at/above (for probabilities <= 50\%) or at/below (for probabilities >= 50\%) the
 exceedance levels.
 }

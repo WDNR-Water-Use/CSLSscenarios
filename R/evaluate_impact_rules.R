@@ -39,7 +39,6 @@ evaluate_impact_rules <- function(this_rule, metric_uncertainty) {
     impact$diff <- 0
   }
 
-
   # No change allowed, allow standard deviation
   this_metric  <- metric_uncertainty %>%
                   filter(.data$metric == this_rule$metric,

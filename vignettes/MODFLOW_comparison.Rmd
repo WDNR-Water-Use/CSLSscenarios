@@ -25,6 +25,7 @@ MODFLOW         <- CSLSdata::MODFLOW %>%
                    select(.data$lake, .data$scenario, .data$sim,
                           .data$date, .data$level_m) 
 MODFLOW_metrics <- CSLSscenarios::MODFLOW_metrics %>%
+                   filter(.data$scenario %in% c("no_irr", "cur_irr")) %>%
                    mutate(value = ifelse(.data$metric ==  "area",
                                          NISTsqrMeterTOacre(.data$value),
                                          ifelse(.data$metric == "volume",
@@ -148,6 +149,14 @@ plot_diff <- function(df,
 
 
 ## Overview
+
+This document compares the full suite of no-irrigated-agriculture simulations to
+the current-irrigated-agriculture simulations. These Monte Carlo simulations
+were run to capture the uncertainty in the Soil Water Balance parameterization,
+and thus uncertainty in our estimation of recharge. Here, pairwise differences
+indicate the difference between a no-irrigated-agriculture simulation and the
+corresponding current-irrigated-agriculture simulation with the same SWB
+parameterization (i.e., an apples to apples comparison).
 
 ## Magnitude
 
@@ -339,87 +348,15 @@ plot_diff(MODFLOW_diff, metric = metric, variables = variables,
 
 ## Frequency
 
-### Pleasant Lake - Stratification
-
-**Comparison**
-
-```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE, fig.width=3, fig.height=2.5}
-metric    <- data.frame(metric = "stratification",
-                        ylabel = "Time Lake is Stratified (%)",
-                        mTOft = FALSE)
-variables <- data.frame(breaks = c("percent_strat"),
-                        labels = c("% stratified"))
-
-plot_comparison(MODFLOW_metrics, metric = metric, variables = variables)
-```
-<br>
-
-**Pairwise Differences**
-
-```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE, fig.width=3, fig.height=2.5}
-plot_diff(MODFLOW_diff, metric = metric, variables = variables)
-```
-
-<br>
-
-### Pleasant Lake - Turtle Bay
-
-**Comparison**
-
-```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE, fig.width=3, fig.height=2.5}
-metric    <- data.frame(metric = "turtle_bay",
-                        ylabel = "Time Turtle Bay Connected (%)",
-                        mTOft = FALSE)
-variables <- data.frame(breaks = c("percent_connect",
-                                   "percent_connect_warm"),
-                        labels = c("% Connected",
-                                   "% Connected\n(Warm Months)"))
-
-plot_comparison(MODFLOW_metrics, metric = metric, variables = variables)
-```
-<br>
-
-**Pairwise Differences**
-
-```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE, fig.width=3, fig.height=2.5}
-plot_diff(MODFLOW_diff, metric = metric, variables = variables)
-```
-
-<br>
-
-### Pleasant Lake - Motorboat Area > 62.5 ac
-
-**Comparison**
-
-```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE, fig.width=3, fig.height=2.5}
-metric    <- data.frame(metric = "motorboat",
-                        ylabel = "Percent of Time",
-                        mTOft = FALSE)
-variables <- data.frame(breaks = c("percent_ok"),
-                        labels = c("Motorboating Legal"))
-
-plot_comparison(MODFLOW_metrics, metric = metric, variables = variables)
-```
-
-<br>
-
-**Pairwise Differences**
-
-```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE, fig.width=3, fig.height=2.5}
-plot_diff(MODFLOW_diff, metric = metric, variables = variables)
-```
-
-<br>
-
 ### Long Lake - Is Lake & Paddle Sports
 
 **Comparison**
 
-```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE, fig.width=3, fig.height=2.5}
+```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE, fig.width=4.5, fig.height=4}
 metric    <- data.frame(metric = "is_lake",
                         ylabel = "Percent of Time",
                         mTOft = FALSE)
-variables <- data.frame(breaks = c("percent_lake", "percent_lake_warm", 
+variables <- data.frame(breaks = c("percent_epa_lake", "percent_lake_warm", 
                                    "percent_open_lake"),
                         labels = c("Is Lake", "Paddle Sport\nPossible", "Is Open\nLake"))
 
@@ -458,7 +395,7 @@ plot_comparison(MODFLOW_metrics, metric = metric, variables = variables)
 
 **Pairwise Differences**
 
-```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE, fig.width=3, fig.height=2.5}
+```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE, fig.width=4.5, fig.height=4}
 plot_diff(MODFLOW_diff, metric = metric, variables = variables)
 ```
 
@@ -486,7 +423,7 @@ plot_comparison(MODFLOW_metrics, metric = metric, variables = variables)
 
 **Pairwise Differences**
 
-```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE, fig.width=4, fig.height=5}
+```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE, fig.width=4.5, fig.height=4}
 plot_diff(MODFLOW_diff, metric = metric, variables = variables)
 ```
 

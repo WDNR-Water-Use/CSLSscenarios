@@ -1,4 +1,4 @@
-#' Calculate bathymetric metrics
+#' Calculate bathymetric-related metrics
 #'
 #' Given a data frame with the metrics for a single set of simulations,
 #' calculate the associated volume (m3), area (m2), maximum depth (m), and mean
@@ -26,7 +26,7 @@
 calculate_bathymetry <- function(df) {
 
   # Load lake profile and lake raster information
-  profile  <- CSLSdata::bathymetry
+  profile     <- CSLSdata::bathymetry
   lake_raster <- CSLSdata::lake_raster
 
   # Only evaluate for lakes which have all pieces of information

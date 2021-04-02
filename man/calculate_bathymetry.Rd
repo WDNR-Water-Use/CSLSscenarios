@@ -2,7 +2,7 @@
 % Please edit documentation in R/calculate_bathymetry.R
 \name{calculate_bathymetry}
 \alias{calculate_bathymetry}
-\title{Calculate bathymetric metrics}
+\title{Calculate bathymetric-related metrics}
 \usage{
 calculate_bathymetry(df)
 }

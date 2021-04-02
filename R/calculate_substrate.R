@@ -11,7 +11,8 @@
 #' @return substrate, a data frame with "lake", "metric", "variable", and
 #'         "value" where the metric is "centrarchid_substrate", the variables
 #'         are all the exceedance level probabilities inputted in df, and the
-#'         value is the associated substrate area in m^2.
+#'         value is the mean substrate hardness at generalized centrarchid
+#'         spawning depth.
 #'
 #' @importFrom magrittr %>%
 #' @importFrom rlang .data
@@ -31,12 +32,12 @@ calculate_substrate <- function(df) {
                .data$metric == "exceedance_level") %>%
         mutate(probs = .data$variable)
 
-  # Fish substrate area (m^2) given lake elevation
+  # Fish substrate mean hardness at spawning depth
   fish_substrate  <- CSLSdata::bathymetry %>%
                      filter(.data$lake == "Pleasant")
-  approx_spawn_m2 <- approxfun(x = fish_substrate$elev_m,
-                               y = fish_substrate$substrate_area_m2)
-  df$centrarchid_substrate <- approx_spawn_m2(df$value)
+  approx_spawn_Hrd <- approxfun(x = fish_substrate$elev_m,
+                               y = fish_substrate$meanSubHrd)
+  df$centrarchid_substrate <- approx_spawn_Hrd(df$value)
 
   substrate <- df %>%
                select(.data$lake, .data$probs, .data$centrarchid_substrate) %>%

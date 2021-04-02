@@ -1,6 +1,6 @@
 #' Dataset: comparison of MODFLOW scenarios
 #'
-#' COmparison of MODFLOW scenarios with determinations of impact for variaous
+#' Comparison of MODFLOW scenarios with determinations of impact for variaous
 #' ecological indicators.
 #'
 #' @docType data
@@ -35,6 +35,8 @@
 #'   \item{bathy2}{value of bathymetry metric for comparison scenario}
 #'   \item{bathy_threshold_diff}{bathy_threshold - bathy1}
 #'   \item{bathy_diff}{bathy2 - bathy1}
+#'   \item{scenario}{MODFLOW scenario, e.g., "cal", "no_irr", "cur_irr",
+#'                   "wells_off"}
 #'   \item{sim}{id of MODFLOW simulation}
 #'   \item{sim_type}{"base", "conservative", or "permissive"}
 #' }
