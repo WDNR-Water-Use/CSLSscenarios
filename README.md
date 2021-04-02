@@ -18,6 +18,8 @@ The full suite of hydrologic metrics is calculated for each simualtion via
 impact assessment are collated in `data/ecological_rules` and interpreted by the
 `R/compare_scenarios.R`.
 
+Details on data and code can also be found in `inst/CSLSscenarios_1.0.0.pdf`.
+
 ## Installation
 
 Several data files in this package are hosted via Git Large File Storage (LFS).

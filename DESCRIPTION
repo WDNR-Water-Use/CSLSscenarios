@@ -1,7 +1,7 @@
 Package: CSLSscenarios
 Type: Package
 Title: CSLS MODFLOW Scenario Analysis
-Version: 0.1.0
+Version: 1.0.0
 Author: Carolyn Voter
 Maintainer: Carolyn Voter <cvoter@wisc.edu>
 Description: Analyze MODFLOW scenarios for average seasonal water levels and significant (ecological) impact.
