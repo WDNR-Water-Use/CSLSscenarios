@@ -29,7 +29,7 @@ library(ggplot2)
 library(extrafont)
 library(patchwork)
 
-save_on    <- FALSE
+save_on    <- TRUE
 fig_width  <- 8.7
 fig_height <- 2
 

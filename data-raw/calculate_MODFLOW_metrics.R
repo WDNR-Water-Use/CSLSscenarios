@@ -10,7 +10,7 @@ library(reshape2)
 
 # PARAMETERS: Lakes of interest ------------------------------------------------
 lakes     <- c("Pleasant", "Long", "Plainfield")
-scenarios <- c("no_irr", "cur_irr", "wells_off") # 38-year scenarios
+scenarios <- c("no_irr", "cur_irr", "fut_irr", "wells_off") # 38-year scenarios
 
 # DATA: Load MODFLOW data for climate runs -------------------------------------
 # Allow for a burn-in period, nix first 5 years (start at 1986)
@@ -23,6 +23,12 @@ MODFLOW <- CSLSdata::MODFLOW %>%
                   lake = .data$lake,
                   date = .data$date,
                   level = .data$level_m)
+
+# Make sure all cur_irr have a no_irr pair
+no_irr_sims <- unique(MODFLOW$sim[MODFLOW$scenario == "no_irr"])
+MODFLOW <- MODFLOW %>%
+           filter(.data$scenario != "cur_irr" |
+                    .data$sim %in% no_irr_sims)
 
 # CALCULATIONS: Calculate hydrologic metrics for each sim for each lake --------
 # Convert levels to max depths for fairer CV calcs
@@ -49,7 +55,7 @@ for (scenario in scenarios) {
                           .data$sim == !!sim)
 
     #Always use no_irr exceedance levels to calculate durations
-    if (scenario %in% c("cur_irr", "fut_irr")) {
+    if (scenario %in% c("cur_irr")) {
       dur_exceeds <- scenario_metrics_no_irr %>%
                      filter(.data$scenario == "no_irr",
                             .data$sim == !!sim,
@@ -57,7 +63,7 @@ for (scenario in scenarios) {
                      select(.data$lake, .data$variable, .data$value,
                             .data$series) %>%
                      dcast(lake+series~variable, value.var = "value")
-    } else if (scenario == "wells_off") {
+    } else if (scenario %in% c("wells_off", "fut_irr")) {
       dur_exceeds <- scenario_metrics_no_irr %>%
                      filter(.data$scenario == "no_irr",
                             .data$sim == 1,

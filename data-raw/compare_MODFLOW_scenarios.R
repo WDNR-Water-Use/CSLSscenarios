@@ -51,16 +51,36 @@ for (sim in these_sims) {
   this_comparison$sim      <- sim
   this_comparison$scenario <- scenario
   this_comparison$sim_type <- use_sims$sim_type[use_sims$sim == sim]
-    if (scenario != "wells_off") {
-
-    } else {
-      this_comparison$sim_type <- "base"
-    }
   comparison[[i]] <- this_comparison
   i <- i + 1
 }
 
-# 2b. Wells Off ----------------------------------------------------------------
+# 2b. Potential future irrigation ----------------------------------------------
+scenario   <- "fut_irr"
+these_sims <- 1
+for (sim in these_sims) {
+  this_base     <- MODFLOW_metrics %>%
+                   filter(.data$sim == !!sim,
+                          .data$scenario == "no_irr",
+                          .data$series == "month") %>%
+                   select(.data$lake, .data$metric, .data$variable, .data$value)
+  this_scenario <- MODFLOW_metrics %>%
+                   filter(.data$sim == !!sim,
+                          .data$scenario == !!scenario,
+                          .data$series == "month") %>%
+                   select(.data$lake, .data$metric, .data$variable, .data$value)
+
+  this_comparison <- compare_scenarios(this_base,
+                                       this_scenario,
+                                       metric_uncertainty)
+  this_comparison$sim      <- sim
+  this_comparison$scenario <- scenario
+  this_comparison$sim_type <- "base"
+  comparison[[i]]          <- this_comparison
+  i <- i + 1
+}
+
+# 2c. Wells Off ----------------------------------------------------------------
 scenario <- "wells_off"
 this_scenario <- MODFLOW_metrics %>% filter(.data$scenario == !!scenario)
 these_sims    <- unique(this_scenario$sim)

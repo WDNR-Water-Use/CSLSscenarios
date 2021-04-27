@@ -20,10 +20,10 @@ library(extrafont)
 library(DT)
 
 scenarios <- data.frame(scenario = c("no_irr", "cur_irr", "fut_irr"),
-                        scenario_name = c("No Irrigation", 
-                                          "Current Irrigation",
-                                          "Future Irrigation"),
-                        colors = c("steelblue4", "goldenrod1", "darkorange"))
+                        scenario_name = c("No Irrigated Agriculture", 
+                                          "Current Irrigated Agriculture",
+                                          "Potential Irrigated Agriculture"),
+                        colors = c("steelblue4", "goldenrod1", "darkred"))
 
 # Lake Levels ------------------------------------------------------------------
 MODFLOW <- CSLSdata::MODFLOW %>%
@@ -65,7 +65,7 @@ MODFLOW_metrics$scenario <- factor(MODFLOW_metrics$scenario,
 
 exceeds <- MODFLOW_metrics %>%
            filter(.data$metric == "exceedance_level",
-                  .data$scenario == "No Irrigation",
+                  .data$scenario == "No Irrigated Agriculture",
                   .data$series == "month") %>%
            mutate(base = NISTmeterTOft(.data$base))
 ```
@@ -236,7 +236,9 @@ format_table <- function(df, metrics, variables, series = "month",
 ```
 
 ```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE}
-plot_levels <- function(df, exceeds, scenarios, only_base = FALSE, text_size = 10) {
+plot_levels <- function(df, exceeds, scenarios, only_base = FALSE, 
+                        text_size = 10) {
+  
   if (only_base) {
     plot_obj <- ggplot(df)
   } else {
@@ -342,7 +344,7 @@ plot_durations <- function(df, scenarios, text_size = 10, base_sim = 1,
   for (scenario in unique(df$scenario)) {
     if (only_no_irr) {
       exceeds_df <- df %>%
-                  filter(.data$scenario == "No Irrigation",
+                  filter(.data$scenario == "No Irrigated Agriculture",
                          .data$sim == base_sim)
     } else {
       exceeds_df <- df %>%
@@ -427,7 +429,7 @@ plot_rates <- function(df, scenarios, variables, text_size = 10, base_sim = 1) {
                          color = .data$scenario,
                          fill = .data$scenario)) +
               geom_histogram(binwidth = 0.25,
-                             alpha = 0.3,
+                             alpha = 0.2,
                              position = "identity") +
               scale_fill_manual(name = "Scenario",
                                  breaks = scenarios$scenario_name,
@@ -496,8 +498,8 @@ and they tend to last a long time. It makes these histograms kind of silly since
 there are so few occurrences. To make them somewhat more readable, I binned by
 year. Durations longer than 20 years include:
 
-  1. Long Lake, Current Irrigation, Below Median: Nearly 29 years (345 months)
-  2. Plainfield Lake, Current Irrigation, Below Median: Nearly 22 years (262
+  1. Long Lake, Current Irrigated Agriculture, Below Median: Nearly 29 years (345 months)
+  2. Plainfield Lake, Current Irrigated Agriculture, Below Median: Nearly 22 years (262
   months)
 
 <br>
@@ -525,7 +527,7 @@ plot_durations(MODFLOW, scenarios, variables = dur_var, only_no_irr = FALSE)
 ### Rate of Change
 Histograms for each scenario are overlayed on top of one another. They're
 generally the same. You could maybe argue that rise/fall rates are a little more
-extreme over 12 months with Current Irrigation at Long and Plainfield, but I
+extreme over 12 months with Current Irrigated Agriculture at Long and Plainfield, but I
 don't see these as meaningfully different.
 
 <br>
