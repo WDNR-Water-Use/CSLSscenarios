@@ -19,6 +19,8 @@ library(ggplot2)
 library(extrafont)
 library(DT)
 
+save <- TRUE
+
 scenarios <- data.frame(scenario = c("no_irr", "cur_irr", "fut_irr"),
                         scenario_name = c("No Irrigated Agriculture", 
                                           "Current Irrigated Agriculture",
@@ -237,7 +239,11 @@ format_table <- function(df, metrics, variables, series = "month",
 
 ```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE}
 plot_levels <- function(df, exceeds, scenarios, only_base = FALSE, 
-                        text_size = 10) {
+                        text_size = 10, lake = NULL) {
+  if (!is.null(lake)) {
+    df <- df %>% filter(.data$lake == !!lake)
+    exceeds <- exceeds %>% filter(.data$lake == !!lake)
+  }
   
   if (only_base) {
     plot_obj <- ggplot(df)
@@ -285,11 +291,16 @@ plot_levels <- function(df, exceeds, scenarios, only_base = FALSE,
               scale_x_continuous(expand = c(0,0),
                                  breaks = seq(0,34,5),
                                  minor_breaks = seq(0, 34, 1)) +
-              facet_wrap(~lake, scales = "free_y", ncol = 1) +
               theme_bw() +
               theme(text = element_text(family = "Segoe UI Semilight",
                                         size = text_size),
                     legend.position = "top")
+  
+  # Add facet if plotting all lakes on one
+  if (is.null(lake)) {
+    plot_obj <- plot_obj +
+                facet_wrap(~lake, scales = "free_y", ncol = 1)
+  }
   
   return(plot_obj)
 }
@@ -297,14 +308,17 @@ plot_levels <- function(df, exceeds, scenarios, only_base = FALSE,
 
 ```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE}
 plot_exceedances <- function(df, scenarios, text_size = 10,
-                             base_sim = 1) {
+                             base_sim = 1, lake = NULL) {
+  if (!is.null(lake)) {
+    df <- df %>% filter(.data$lake == !!lake)
+  }
   exceeds <- NULL
   for (scenario in unique(df$scenario)) {
     this_scenario <- df %>%
                      filter(.data$scenario == !!scenario,
                             .data$sim == base_sim)
     this_exceeds <- calculate_exceedances(this_scenario, 
-                                        probs = seq(1,99,1)) %>%
+                                          probs = seq(1,99,1)) %>%
                     mutate(probs = as.numeric(as.character(.data$variable)),
                            scenario = scenario)
     exceeds <- rbind(exceeds, this_exceeds)
@@ -323,12 +337,16 @@ plot_exceedances <- function(df, scenarios, text_size = 10,
                                  breaks = seq(0,100,10)) +
               labs(x = "Exceedance Probability (%)", 
                    y = "Lake Elevation (ft)") +
-              facet_wrap(~lake, scales = "free_y", ncol = 1) +
               theme_bw() +
               theme(text = element_text(family = "Segoe UI Semilight",
                                         size = text_size),
                     legend.position = "top")
   
+  # Add facet if plotting all lakes on one
+  if (is.null(lake)) {
+    plot_obj <- plot_obj +
+                facet_wrap(~lake, scales = "free_y", ncol = 1)
+  }
   return(plot_obj)
 }
 ```
@@ -338,13 +356,25 @@ plot_durations <- function(df, scenarios, text_size = 10, base_sim = 1,
                            probs = c(10, 25, 50, 75, 90),
                            max_months = 12*20,
                            variables,
-                           only_no_irr = TRUE) {
+                           only_no_irr = TRUE,
+                           lake) {
+  
+  short_names <- c("No Irrigated Ag",
+                   "Current Irrigated Ag",
+                   "Potential Irrigated Ag")
+  
+  df <- df %>% filter(.data$lake == !!lake)
+  df$scenario <- factor(df$scenario,
+                        levels = c("No Irrigated Agriculture",
+                                   "Current Irrigated Agriculture",
+                                   "Potential Irrigated Agriculture"),
+                        labels = short_names)
   
   durations <- NULL
   for (scenario in unique(df$scenario)) {
     if (only_no_irr) {
       exceeds_df <- df %>%
-                  filter(.data$scenario == "No Irrigated Agriculture",
+                  filter(.data$scenario == "No Irrigated Ag",
                          .data$sim == base_sim)
     } else {
       exceeds_df <- df %>%
@@ -370,6 +400,9 @@ plot_durations <- function(df, scenarios, text_size = 10, base_sim = 1,
     durations$value[durations$value > max_months] <- max_months
   }
   
+  durations$scenario <- factor(durations$scenario,
+                               levels = short_names)
+  
   plot_obj <- ggplot(data = durations,
                      aes(x = .data$value/12,
                          color = .data$scenario,
@@ -378,11 +411,11 @@ plot_durations <- function(df, scenarios, text_size = 10, base_sim = 1,
                              alpha = 0.3,
                              position = "identity") +
               scale_fill_manual(name = "Scenario",
-                                 breaks = scenarios$scenario_name,
+                                 breaks = short_names,
                                  values = scenarios$colors,
                                  labels = scenarios$scenario_name) +
               scale_color_manual(name = "Scenario",
-                                 breaks = scenarios$scenario_name,
+                                 breaks = short_names,
                                  values = scenarios$colors,
                                  labels = scenarios$scenario_name) +
               scale_y_continuous(expand = c(0,0),
@@ -391,11 +424,11 @@ plot_durations <- function(df, scenarios, text_size = 10, base_sim = 1,
                                  minor_breaks = seq(0,10,1)) +
               scale_x_continuous(expand = c(0,0),
                                  limits = c(-1, max_months/12+1),
-                                 breaks = seq(0,max_months/12,2),
-                                 labels = c(as.character(seq(0,max_months/12-2,2)),
+                                 breaks = seq(0,max_months/12,5),
+                                 labels = c(as.character(seq(0,max_months/12-5,5)),
                                             sprintf(">%d", max_months/12)),
                                  minor_breaks = seq(0,max_months/12,1)) +
-              facet_grid(variable~lake, switch = "y") +
+              facet_grid(scenario~variable, switch = "y") +
               labs(x = "Number of years",
                    y = "Number of times") +
               theme_bw() +
@@ -408,7 +441,19 @@ plot_durations <- function(df, scenarios, text_size = 10, base_sim = 1,
 ```
 
 ```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE}
-plot_rates <- function(df, scenarios, variables, text_size = 10, base_sim = 1) {
+plot_rates <- function(df, scenarios, variables, text_size = 10, base_sim = 1,
+                       lake) {
+  short_names <- c("No Irrigated Ag",
+                   "Current Irrigated Ag",
+                   "Potential Irrigated Ag")
+  
+  df <- df %>% filter(.data$lake == !!lake)
+  df$scenario <- factor(df$scenario,
+                        levels = c("No Irrigated Agriculture",
+                                   "Current Irrigated Agriculture",
+                                   "Potential Irrigated Agriculture"),
+                        labels = short_names)
+  
   rates <- NULL
   for (scenario in unique(df$scenario)) {
     this_scenario <- df %>%
@@ -423,7 +468,8 @@ plot_rates <- function(df, scenarios, variables, text_size = 10, base_sim = 1) {
                            labels = variables$var_name)
   
   max_rate <- ceiling(4*max(abs(rates$value), na.rm = TRUE))/4
-
+  rates$scenario <- factor(rates$scenario,
+                               levels = short_names)
   plot_obj <- ggplot(data = rates,
                      aes(x = .data$value,
                          color = .data$scenario,
@@ -432,18 +478,18 @@ plot_rates <- function(df, scenarios, variables, text_size = 10, base_sim = 1) {
                              alpha = 0.2,
                              position = "identity") +
               scale_fill_manual(name = "Scenario",
-                                 breaks = scenarios$scenario_name,
+                                 breaks = short_names,
                                  values = scenarios$colors,
                                  labels = scenarios$scenario_name) +
               scale_color_manual(name = "Scenario",
-                                 breaks = scenarios$scenario_name,
+                                 breaks = short_names,
                                  values = scenarios$colors,
                                  labels = scenarios$scenario_name) +
               scale_y_continuous(expand = c(0,0)) +
               scale_x_continuous(expand = c(0,0),
                                  minor_breaks = seq(-max_rate, max_rate, 0.25)) +
-              facet_grid(variable~lake, switch = "y",
-                         scales = "free_y") +
+                facet_grid(scenario~variable, 
+                           switch = "y") +
               labs(x = "Rate of Change (ft/time period)",
                    y = "Number of Occurrences") +
               theme_bw() +
@@ -477,6 +523,26 @@ erroneous comparisons to the past.
 plot_levels(MODFLOW, exceeds, scenarios, only_base = TRUE)
 ```
 
+```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE, fig.width=6.5, fig.height=2.5}
+p1 <- plot_levels(MODFLOW, exceeds, scenarios, only_base = TRUE, lake = "Pleasant")
+p2 <- plot_levels(MODFLOW, exceeds, scenarios, only_base = TRUE, lake = "Long")
+p3 <- plot_levels(MODFLOW, exceeds, scenarios, only_base = TRUE, lake = "Plainfield")
+
+if (save) {
+  fig_width  <- 6.5
+  fig_height <- 2.5
+  ggsave("levels_psnt.png", p1, device = "png", 
+         width = fig_width, height = fig_height, units = "in")
+  ggsave("levels_long.png", p2, device = "png", 
+         width = fig_width, height = fig_height, units = "in")
+  ggsave("levels_pfl.png", p3, device = "png", 
+         width = fig_width, height = fig_height, units = "in")
+}
+p1
+p2
+p3
+```
+
 <br>
 
 ### Lake Exceedance Probability Curves
@@ -486,6 +552,27 @@ Kind of interesting - essentially a uniform shift downward at all lakes.
 
 ```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE, fig.width=6.5, fig.height=6}
 plot_exceedances(MODFLOW, scenarios)
+```
+
+```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE, fig.width=6.5, fig.height=2.5}
+p1 <- plot_exceedances(MODFLOW, scenarios, lake = "Pleasant")
+p2 <- plot_exceedances(MODFLOW, scenarios, lake = "Long")
+p3 <- plot_exceedances(MODFLOW, scenarios, lake = "Plainfield")
+
+if (save) {
+  fig_width  <- 6.5
+  fig_height <- 2.5
+  ggsave("exceed_psnt.png", p1, device = "png", 
+         width = fig_width, height = fig_height, units = "in")
+  ggsave("exceed_long.png", p2, device = "png", 
+         width = fig_width, height = fig_height, units = "in")
+  ggsave("exceed_pfl.png", p3, device = "png", 
+         width = fig_width, height = fig_height, units = "in")
+}
+
+p1
+p2
+p3
 ```
 
 <br>
@@ -504,8 +591,25 @@ year. Durations longer than 20 years include:
 
 <br>
 
-```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE, fig.width=6.5, fig.height=7}
-plot_durations(MODFLOW, scenarios, variables = dur_var)
+```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE, fig.width=9, fig.height=5}
+p1 <- plot_durations(MODFLOW, scenarios, variables = dur_var, lake = "Pleasant")
+p2 <- plot_durations(MODFLOW, scenarios, variables = dur_var, lake = "Long")
+p3 <- plot_durations(MODFLOW, scenarios, variables = dur_var, lake = "Plainfield")
+
+if (save) {
+  fig_width  <- 9
+  fig_height <- 5
+  ggsave("dur_psnt.png", p1, device = "png", 
+         width = fig_width, height = fig_height, units = "in")
+  ggsave("dur_long.png", p2, device = "png", 
+         width = fig_width, height = fig_height, units = "in")
+  ggsave("dur_pfl.png", p3, device = "png", 
+         width = fig_width, height = fig_height, units = "in")
+}
+
+p1
+p2
+p3
 ```
 
 <br>
@@ -518,8 +622,24 @@ only different because the entire time series is lower.
 
 <br>
 
-```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE, fig.width=6.5, fig.height=7}
-plot_durations(MODFLOW, scenarios, variables = dur_var, only_no_irr = FALSE)
+```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE, fig.width=9, fig.height=5}
+p1 <- plot_durations(MODFLOW, scenarios, variables = dur_var, only_no_irr = FALSE, lake = "Pleasant")
+p2 <- plot_durations(MODFLOW, scenarios, variables = dur_var, only_no_irr = FALSE, lake = "Long")
+p3 <- plot_durations(MODFLOW, scenarios, variables = dur_var, only_no_irr = FALSE, lake = "Plainfield")
+
+if (save) {
+  fig_width  <- 9
+  fig_height <- 5
+  ggsave("dur2_psnt.png", p1, device = "png", 
+         width = fig_width, height = fig_height, units = "in")
+  ggsave("dur2_long.png", p2, device = "png", 
+         width = fig_width, height = fig_height, units = "in")
+  ggsave("dur2_pfl.png", p3, device = "png", 
+         width = fig_width, height = fig_height, units = "in")
+}
+p1
+p2
+p3
 ```
 
 <br> 
@@ -532,8 +652,25 @@ don't see these as meaningfully different.
 
 <br>
 
-```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE, fig.width=6.5, fig.height=6}
-plot_rates(MODFLOW, scenarios, variables = rate_var)
+```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE, fig.width=6.5, fig.height=5}
+p1 <- plot_rates(MODFLOW, scenarios, variables = rate_var, lake = "Pleasant")
+p2 <- plot_rates(MODFLOW, scenarios, variables = rate_var, lake = "Long")
+p3 <- plot_rates(MODFLOW, scenarios, variables = rate_var, lake = "Plainfield")
+
+if (save) {
+  fig_width  <- 6.5
+  fig_height <- 5
+  ggsave("rates_psnt.png", p1, device = "png", 
+         width = fig_width, height = fig_height, units = "in")
+  ggsave("rates_long.png", p2, device = "png", 
+         width = fig_width, height = fig_height, units = "in")
+  ggsave("rates_pfl.png", p3, device = "png", 
+         width = fig_width, height = fig_height, units = "in")
+}
+
+p1
+p2
+p3
 ```
 
 <br>

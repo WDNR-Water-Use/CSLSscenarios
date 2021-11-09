@@ -42,9 +42,9 @@ calculate_spawning <- function(df,
 #                                                   max_fall,
 #                                                 TRUE, FALSE)) %>%
 #                   select(.data$lake, .data$year, .data$steady_summer)
-  
+
   steady_summer  <- df %>%
-                    filter(.data$month %in% 3:7) %>%
+                    filter(.data$month %in% 3:8) %>%
                     group_by(.data$lake, .data$year) %>%
                     summarise(steady_summer = ifelse(min(diff(.data$level)) >= max_fall, TRUE, FALSE))
   good_spawning <- left_join(high_spring, steady_summer, by = c("lake", "year")) %>%

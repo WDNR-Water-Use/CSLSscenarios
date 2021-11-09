@@ -34,7 +34,8 @@ MODFLOW_comparison <- CSLSscenarios::MODFLOW_comparison  %>%
                                                      .data$threshold_diff),
                              diff = ifelse(.data$variable == "median",
                                                      .data$value2 - .data$value1,
-                                                     .data$diff))
+                                                     .data$diff)) %>%
+                      filter(.data$scenario == "wells_off")
 
 floating_Long_low <- MODFLOW_comparison %>%
                      filter(.data$lake == "Long",

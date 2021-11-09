@@ -152,20 +152,21 @@ ggplot() +
 
 
 
-# ggplot() +
-#   geom_line(data = MOD1,
-#             aes(x = .data$date,
-#                 y = .data$level_m,
-#                 group = as.factor(.data$sim)),
-#             color = "black",
-#             alpha = 0.05) +
-#   geom_line(data = filter(MOD1, .data$sim %in% c(304)),
-#             aes(x = .data$date,
-#                 y = .data$level_m),
-#             color = "red") +
-#   labs(x = "", y = "Lake Elevation (m)", linetype = "") +
-#   facet_wrap(~lake, ncol = 1, scales = "free_y") +
-#   theme_bw()
+ggplot() +
+  geom_line(data = MOD1,
+            aes(x = .data$date,
+                y = .data$level_m,
+                group = as.factor(.data$sim)),
+            color = "black",
+            alpha = 0.05) +
+  geom_line(data = filter(MOD1, .data$sim %in% c(322)),
+            aes(x = .data$date,
+                y = .data$level_m,
+                group = as.factor(.data$sim)),
+            color = "red") +
+  labs(x = "", y = "Lake Elevation (m)", linetype = "") +
+  facet_wrap(~lake, ncol = 1, scales = "free_y") +
+  theme_bw()
 ```
 
 ## Evaluate scenario value independently

@@ -22,8 +22,8 @@
 #' @export
 
 calculate_paddlesports <- function(df,
-                                   lake_info = data.frame(lake = "Long",
-                                                          elev_m = 334.29)) {
+                                   lake_info = data.frame(lake = c("Long", "Plainfield"),
+                                                          elev_m = c(334.29, 334.1581))) {
   paddlesports <- NULL
   for (lake in lake_info$lake) {
     this_df        <- df %>%

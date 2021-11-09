@@ -37,7 +37,7 @@ scenarios <- data.frame(scenario = c("no_irr", "cur_irr", "fut_irr"),
                         scenario_name = c("No Irrigated Agriculture", 
                                           "Current Irrigated Agriculture",
                                           "Potential Irrigated Agriculture"),
-                        colors = c("steelblue4", "goldenrod1", "darkorange"))
+                        colors = c("steelblue4", "goldenrod1", "darkred"))
 
 # Lake Levels ------------------------------------------------------------------
 MODFLOW <- CSLSdata::MODFLOW %>%
@@ -296,6 +296,43 @@ plot_levels <- function(df, exceeds, scenarios, lake,
 }
 ```
 
+```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE}
+plot_all_levels <- function(df, exceeds, scenarios, lake, text_size = 14) {
+  df <- df %>% 
+        filter(.data$lake == !!lake,
+               .data$sim == 1)
+  
+  # Build plot
+  plot_obj <- ggplot(df) +
+              geom_line(aes(x = .data$time,
+                            y = .data$level,
+                            color = .data$scenario),
+                        size = 1) +
+              scale_color_manual(name = "Scenario",
+                                 breaks = scenarios$scenario_name,
+                                 values = scenarios$colors,
+                                 labels = scenarios$scenario_name) +
+              scale_fill_manual(name = "Scenario",
+                                 breaks = scenarios$scenario_name,
+                                 values = scenarios$colors,
+                                 labels = scenarios$scenario_name) +
+              labs(x = "Time (yrs)", y = "Elevation (ft)") +
+              scale_x_continuous(expand = c(0,0),
+                                 breaks = seq(0,34,5),
+                                 minor_breaks = seq(0, 34, 1)) +
+              theme_bw() +
+              theme(text = element_text(family = "Segoe UI Semilight",
+                                        size = text_size),
+                    legend.position = "none",
+                    panel.background = element_rect(fill = "transparent", 
+                                                    color = NA),  
+                    plot.background = element_rect(fill = "transparent", 
+                                                   color = NA))
+  
+  return(plot_obj)
+}
+```
+
 
 ### Time series only
 
@@ -312,6 +349,25 @@ if (save_on) {
   ggsave("pfl_no_irr.png", p3, 
          device = "png", width = fig_width, height = fig_height, units = "in")
 }
+
+p1 + p2 + p3 + plot_layout(ncol = 1, guides = "collect")
+
+```
+
+```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE, fig.width=fig_width, fig.height=3*fig_height}
+p1 <- plot_all_levels(MODFLOW, exceeds, scenarios, lake = "Pleasant")
+p2 <- plot_all_levels(MODFLOW, exceeds, scenarios, lake = "Long")
+p3 <- plot_all_levels(MODFLOW, exceeds, scenarios, lake = "Plainfield")
+
+p1 + p2 + p3 + plot_layout(ncol = 1, guides = "collect")
+
+```
+
+```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE, fig.width=fig_width, fig.height=3*fig_height}
+tmp_MODFLOW <- MODFLOW %>% filter(.data$scenario != "Potential Irrigated Agriculture")
+p1 <- plot_all_levels(tmp_MODFLOW, exceeds, scenarios, lake = "Pleasant")
+p2 <- plot_all_levels(tmp_MODFLOW, exceeds, scenarios, lake = "Long")
+p3 <- plot_all_levels(tmp_MODFLOW, exceeds, scenarios, lake = "Plainfield")
 
 p1 + p2 + p3 + plot_layout(ncol = 1, guides = "collect")
 

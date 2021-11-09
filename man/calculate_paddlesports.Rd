@@ -6,7 +6,7 @@
 \usage{
 calculate_paddlesports(
   df,
-  lake_info = data.frame(lake = "Long", elev_m = 334.29)
+  lake_info = data.frame(lake = c("Long", "Plainfield"), elev_m = c(334.29, 334.15))
 )
 }
 \arguments{

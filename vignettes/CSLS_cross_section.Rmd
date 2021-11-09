@@ -25,7 +25,7 @@ library(ggplot2)
 library(extrafont)
 library(reshape2)
 
-save_on <- FALSE
+save_on <- TRUE
 
 bathymetry <- CSLSdata::bathymetry %>%
               mutate(y = NISTmeterTOft(.data$elev_m),
@@ -48,27 +48,62 @@ most_limiting <- CSLSscenarios::MODFLOW_comparison %>%
                                                  min(.data$threshold, na.rm = TRUE))) %>%
                  filter(.data$limit_threshold == .data$threshold) %>%
                  ungroup() %>%
-                 filter(.data$sim == 1,
+                 filter(.data$scenario != "wells_off",
+                        .data$sim == 1,
                         .data$metric == "exceedance_level") %>%
                  mutate(probs = .data$variable) %>%
-                 select(.data$lake,
+                 select(.data$scenario,
+                        .data$lake,
                         .data$probs,
                         .data$value1,
                         .data$threshold,
                         .data$value2) 
-exceeds    <- most_limiting %>%
-              filter(.data$probs %in% c("10","90")) %>%
+# exceeds    <- most_limiting %>%
+#               filter(.data$scenario == "cur_irr",
+#                      .data$probs %in% c("10","90")) %>%
+#               select(.data$lake, 
+#                      .data$probs, 
+#                      .data$value1, 
+#                      .data$threshold, 
+#                      .data$value2) %>%
+#               melt(id.vars = c("lake", "probs")) %>%
+#               mutate(y = .data$value,
+#                      scenario = .data$variable) %>%
+#               select(.data$lake, .data$probs, .data$scenario, .data$y)
+# median    <- most_limiting %>%
+#               filter(.data$probs %in% c("50")) %>%
+#               melt(id.vars = c("lake", "probs")) %>%
+#               mutate(y = .data$value,
+#                      scenario = .data$variable) %>%
+#               select(.data$lake, .data$probs, .data$scenario, .data$y)
+
+exceeds1    <- most_limiting %>%
+              filter(.data$scenario == "cur_irr",
+                     .data$probs %in% c("10","50", "90")) %>%
+              select(lake = .data$lake, 
+                     probs = .data$probs, 
+                     no_irr = .data$value1, 
+                     sig_threshold = .data$threshold, 
+                     cur_irr = .data$value2)
+exceeds2   <- most_limiting %>%
+              filter(.data$scenario == "fut_irr",
+                     .data$probs %in% c("10","50", "90")) %>%
+              select(lake = .data$lake, 
+                     probs = .data$probs, 
+                     no_irr = .data$value1, 
+                     sig_threshold = .data$threshold, 
+                     fut_irr = .data$value2)
+exceeds    <- left_join(exceeds1, exceeds2,
+                        by = c("lake", "probs", "no_irr", "sig_threshold")) %>%
               melt(id.vars = c("lake", "probs")) %>%
               mutate(y = .data$value,
                      scenario = .data$variable) %>%
               select(.data$lake, .data$probs, .data$scenario, .data$y)
 
-median    <- most_limiting %>%
-              filter(.data$probs %in% c("50")) %>%
-              melt(id.vars = c("lake", "probs")) %>%
-              mutate(y = .data$value,
-                     scenario = .data$variable) %>%
-              select(.data$lake, .data$probs, .data$scenario, .data$y)
+
+median  <- exceeds %>% filter(.data$probs == "50")
+exceeds <- exceeds %>% filter(.data$probs != "50")
+
 
 ```
 
@@ -84,8 +119,10 @@ draw_rect_lines <- function(bathymetry, exceeds, median, lake, scenario) {
   shaded_rect   <- exceeds %>% 
                    filter(.data$lake == !!lake,
                           scenario == !!scenario) %>% 
-                   mutate(x = fn_elev_horiz(.data$y)) %>%
-                   filter(!is.na(.data$x)) %>%
+                   mutate(x = fn_elev_horiz(.data$y),
+                          x = ifelse(is.na(.data$x), 
+                                     max(this_bathy$x, na.rm = TRUE), 
+                                     .data$x)) %>%
                    select(.data$x, .data$y)
   add_bathy     <- this_bathy %>%
                    filter(.data$y < max(shaded_rect$y),
@@ -179,9 +216,10 @@ add_lake_bottom <- function(plot_obj, bathymetry, lake) {
 ## Pleasant Lake
 ```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE, fig.width=11, fig.height=3.67}
 lake <- "Pleasant"
-no_irr_shapes  <- draw_rect_lines(bathymetry, exceeds, median, lake, "value1")
-threshold_shapes <- draw_rect_lines(bathymetry, exceeds, median, lake, "threshold")
-cur_irr_shapes <- draw_rect_lines(bathymetry, exceeds, median, lake, "value2")
+no_irr_shapes  <- draw_rect_lines(bathymetry, exceeds, median, lake, "no_irr")
+threshold_shapes <- draw_rect_lines(bathymetry, exceeds, median, lake, "sig_threshold")
+cur_irr_shapes <- draw_rect_lines(bathymetry, exceeds, median, lake, "cur_irr")
+fut_irr_shapes <- draw_rect_lines(bathymetry, exceeds, median, lake, "fut_irr")
 
 p1 <- plot_profile(bathymetry, lake)
 p1 <- add_shapes(p1, no_irr_shapes, "steelblue4", "No Irrigated Agriculture")
@@ -197,6 +235,11 @@ p3 <- plot_profile(bathymetry, lake)
 p3 <- add_shapes(p3, cur_irr_shapes, "goldenrod1", "Current Irrigated Agriculture")
 p3 <- add_lake_bottom(p3, bathymetry, lake)
 p3
+
+p4 <- plot_profile(bathymetry, lake)
+p4 <- add_shapes(p4, fut_irr_shapes, "darkred", "Future Irrigated Agriculture")
+p4 <- add_lake_bottom(p4, bathymetry, lake)
+p4
 
 fig_width  <- 21.57
 fig_height <- 7.2
@@ -208,6 +251,8 @@ if (save_on) {
          width = fig_width, height = fig_height, units = "in", dpi = 300)
   ggsave("psnt_cur_irr_distances.svg", p3, device = "svg", 
          width = fig_width, height = fig_height, units = "in", dpi = 300)
+  ggsave("psnt_fut_irr_distances.svg", p4, device = "svg", 
+         width = fig_width, height = fig_height, units = "in", dpi = 300)
 }
 ```
 
@@ -216,9 +261,10 @@ if (save_on) {
 ## Long Lake
 ```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE, fig.width=11, fig.height=3.79}
 lake <- "Long"
-no_irr_shapes  <- draw_rect_lines(bathymetry, exceeds, median, lake, "value1")
-threshold_shapes <- draw_rect_lines(bathymetry, exceeds, median, lake, "threshold")
-cur_irr_shapes <- draw_rect_lines(bathymetry, exceeds, median, lake, "value2")
+no_irr_shapes  <- draw_rect_lines(bathymetry, exceeds, median, lake, "no_irr")
+threshold_shapes <- draw_rect_lines(bathymetry, exceeds, median, lake, "sig_threshold")
+cur_irr_shapes <- draw_rect_lines(bathymetry, exceeds, median, lake, "cur_irr")
+fut_irr_shapes <- draw_rect_lines(bathymetry, exceeds, median, lake, "fut_irr")
 
 p1 <- plot_profile(bathymetry, lake)
 p1 <- add_shapes(p1, no_irr_shapes, "steelblue4", "No Irrigated Agriculture")
@@ -235,15 +281,22 @@ p3 <- add_shapes(p3, cur_irr_shapes, "goldenrod1", "Current Irrigated Agricultur
 p3 <- add_lake_bottom(p3, bathymetry, lake)
 p3
 
+p4 <- plot_profile(bathymetry, lake)
+p4 <- add_shapes(p4, fut_irr_shapes, "darkred", "Future Irrigated Agriculture")
+p4 <- add_lake_bottom(p4, bathymetry, lake)
+p4
 
 fig_width  <- 9.39
 fig_height <- 3.23
+
 if (save_on) {
   ggsave("long_no_irr_distances.svg", p1, device = "svg", 
          width = fig_width, height = fig_height, units = "in", dpi = 300)
   ggsave("long_sig_threshold_distances.svg", p3, device = "svg", 
          width = fig_width, height = fig_height, units = "in", dpi = 300)
   ggsave("long_cur_irr_distances.svg", p2, device = "svg", 
+         width = fig_width, height = fig_height, units = "in", dpi = 300)
+  ggsave("long_fut_irr_distances.svg", p4, device = "svg", 
          width = fig_width, height = fig_height, units = "in", dpi = 300)
 }
 ```
@@ -253,9 +306,10 @@ if (save_on) {
 ## Plainfield Lake
 ```{r eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE, fig.width=10.47, fig.height=4.13}
 lake <- "Plainfield"
-no_irr_shapes  <- draw_rect_lines(bathymetry, exceeds, median, lake, "value1")
-threshold_shapes <- draw_rect_lines(bathymetry, exceeds, median, lake, "threshold")
-cur_irr_shapes <- draw_rect_lines(bathymetry, exceeds, median, lake, "value2")
+no_irr_shapes  <- draw_rect_lines(bathymetry, exceeds, median, lake, "no_irr")
+threshold_shapes <- draw_rect_lines(bathymetry, exceeds, median, lake, "sig_threshold")
+cur_irr_shapes <- draw_rect_lines(bathymetry, exceeds, median, lake, "cur_irr")
+fut_irr_shapes <- draw_rect_lines(bathymetry, exceeds, median, lake, "fut_irr")
 
 p1 <- plot_profile(bathymetry, lake)
 p1 <- add_shapes(p1, no_irr_shapes, "steelblue4", "No Irrigated Agriculture")
@@ -272,6 +326,11 @@ p3 <- add_shapes(p3, cur_irr_shapes, "goldenrod1", "Current Irrigated Agricultur
 p3 <- add_lake_bottom(p3, bathymetry, lake)
 p3
 
+p4 <- plot_profile(bathymetry, lake)
+p4 <- add_shapes(p4, fut_irr_shapes, "darkred", "Future Irrigated Agriculture")
+p4 <- add_lake_bottom(p4, bathymetry, lake)
+p4
+
 fig_width  <- 10.47
 fig_height <- 4.13
 if (save_on) {
@@ -280,6 +339,8 @@ if (save_on) {
   ggsave("pfl_sig_threshold_distances.svg", p2, device = "svg", 
          width = fig_width, height = fig_height, units = "in", dpi = 300)
   ggsave("pfl_cur_irr_distances.svg", p3, device = "svg", 
+         width = fig_width, height = fig_height, units = "in", dpi = 300)
+  ggsave("pfl_fut_irr_distances.svg", p4, device = "svg", 
          width = fig_width, height = fig_height, units = "in", dpi = 300)
 }
 ```

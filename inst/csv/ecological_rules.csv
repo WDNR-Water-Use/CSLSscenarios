@@ -103,7 +103,7 @@
 "frequency","chemistry","stratification","stratification","percent_strat","",NA,0,"lower",TRUE,FALSE,FALSE
 "frequency","fish","turtle_bay","turtle_bay","percent_connect_warm","",NA,0,"lower",TRUE,FALSE,FALSE
 "frequency","human_use","motorboat","motorboat","percent_ok","",NA,0,"lower",TRUE,FALSE,FALSE
-"frequency","human_use","paddleboat","paddlesports","percent_paddle","",NA,0,"lower",FALSE,TRUE,FALSE
+"frequency","human_use","paddleboat","paddlesports","percent_paddle","",NA,0,"lower",FALSE,TRUE,TRUE
 "frequency","human_use","is_lake","is_lake","percent_epa_lake","",NA,0,"lower",FALSE,TRUE,TRUE
 "frequency","human_use","is_open_lake","is_lake","percent_open_lake","",NA,0,"lower",FALSE,TRUE,FALSE
 "frequency","human_use","install_dock","dock","percent_install","",NA,0,"lower",TRUE,TRUE,FALSE
