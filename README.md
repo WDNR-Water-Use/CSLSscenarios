@@ -42,3 +42,39 @@ To install or explore this R package, you may:
   which are saved under `inst/csv/`. These are updated every time the Rda data
   files are, and may be more accessible for non-R users or those more
   comfortable in other programming languages.
+  
+  # Updating ecological rules
+  If you need to update the ecological rules used for Pleasant, Long, and Plainfiled Lakes or add ecological rules for new lakes:
+  
+  1. Update `data-raw/ecological_rules.csv`.  
+      1. Follow the existing conventions for names of indicators, metrics, variables, etc.
+      2. If adding a new lake, add a column for that lake to the right of the columns for Pleasant, Long, and Plainfield.
+      3. If adding a new metric, make sure code to calculate that metric exists in `R/` and is incorporated in `R/calculate_metrics.R`.
+  2. Run the code for `data-raw/import_ecological_rules.R`
+      1. If you added a new lake or other column, update the documentation in `R/ecological_rules.R` to reflect this.
+  3. Re-install CSLSscenarios and restart R (Session > Restart R) to ensure new version of `data/ecological_rules` is available.
+ 
+ # Updating MODFLOW results
+ If you need to rerun to analyze new MODFLOW results (e.g., a new scenario):
+ 
+ 1. First, make sure you have updated the `MODFLOW` data frame in the `CSLSdata` R package ([here](https://github.com/WDNR-Water-Use/CSLSdata)).
+ 2. If you have added new wells and are interested in re-evaluating the "wells_off" scenario, then:
+     1. Update `data-raw\pfl_dist_ranks.csv` and `data-raw\psnt_dist_ranks.csv`
+     2. Rerun `data-raw\import_well_rank_dist.R`
+     3. Re-install CSLSscenarios and restart R (Session > Restart R) to ensure new version of `data/well_rank_dist` is available.
+ 3. Run `data-raw/calculate_MODFLOW_metrics.R` to calculate relevant hydrologic metrics for each scenario.
+     1. Make sure the lakes and scenario names under the [PARAMETERS section](https://github.com/WDNR-Water-Use/CSLSscenarios/blob/main/data-raw/calculate_MODFLOW_metrics.R#L11) are correct for the lakes and scenarios you want to evaluate. If you added new lakes or scenarios, be sure to update here. Note that this code assumes you always want to compare new scenarios to the "no_irr" scenario. If this is not true, you may need to write a new script.
+     2. Confirm same burn-in period under the [DATA](https://github.com/WDNR-Water-Use/CSLSscenarios/blob/main/data-raw/calculate_MODFLOW_metrics.R#L16) section
+     3. Note that code assumes the "no_irr" and "cur_irr" have many (300+) simulations which explored SWB parameterization, while all other scenarios correspond to the parameterization used in the "no_irr"/"cur_irr" simulation #1. If this changes, check code for what may be impacted (e.g., checks to ensure all "cur_irr" simulations have a "no_irr" pair [here](https://github.com/WDNR-Water-Use/CSLSscenarios/blob/main/data-raw/calculate_MODFLOW_metrics.R#L27), which "no_irr" exceedance levels to use for duration calculation in other scenarios [here](https://github.com/WDNR-Water-Use/CSLSscenarios/blob/main/data-raw/calculate_MODFLOW_metrics.R#L66)).
+     4. Note that all durations will be calculated based on exceedance levels from the "no_irr" scenario. If you want to calculate them relative to each scenario's own exceedance levels, adjust the ifelse statements [here](https://github.com/WDNR-Water-Use/CSLSscenarios/blob/main/data-raw/calculate_MODFLOW_metrics.R#L57).
+     5. Running this for all scenarios and simulations may take a while (30min++ on my laptop).
+     6. When finished, will save a new summary data frame `MODFLOW_metrics`. 
+     7. Re-install CSLSscenarios and restart R (Session > Restart R) to ensure new version of `data/MODFLOW_metrics` is available for the next step.
+     8. A csv version of this data frame will simultaneously be saved to `inst/csv/MODFLOW_metrics.csv`.
+ 4. Run `data-raw/compare_MODFLOW_metrics.R` to evaluate whether changes in hydrologic metrics are large enough to cause a significant impact to the lake ecosystems.
+     1. Code assumes ([here](https://github.com/WDNR-Water-Use/CSLSscenarios/blob/main/data-raw/compare_MODFLOW_scenarios.R#L10)) that you have separately calculated water chemistry budget metrics using `CSLSfluxes` ([see repo here](https://github.com/WDNR-Water-Use/CSLSfluxes)).
+     2. Code also assumes you have all 300+ simulations for the "no_irr" scenario to use for calculating uncertainty in a few key ecological indicators which allow "no change" ([see here](https://github.com/WDNR-Water-Use/CSLSscenarios/blob/main/data-raw/compare_MODFLOW_scenarios.R#L20))
+     3. Ensure each scenario you want to evaluate has a section of code to compare to the "no_irr" scenario (e.g., [here](https://github.com/WDNR-Water-Use/CSLSscenarios/blob/main/data-raw/compare_MODFLOW_scenarios.R#L33))
+     4. When finished, will save a new summary data frame `MODFLOW_comparison` which indicates which ecological indicators are impacted for each lake under each scenario.
+     5. Re-install CSLSscenarios and restart R (Session > Restart R) to ensure new version of `data/MODFLOW_comparison` is available for subsequent analysis.
+     6. A csv version of this data frame will simultaneously be saved to `inst/csv/MODFLOW_comparison.csv`.
